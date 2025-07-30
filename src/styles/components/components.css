@@ -1,0 +1,50 @@
+/* src/styles/components.css */
+
+/* Generic Utilities */
+.small-text { font-size: 12pt; color: var(--dark-gray); }
+.error-message { color: var(--danger-color); font-size: 12pt; display: block; margin-top: 8px; }
+.success-message { color: var(--success-color); font-size: 12pt; display: block; margin-top: 8px; }
+.message-banner {
+    text-align: center;
+    margin-top: 15px;
+    padding: 12px 16px;
+    border-radius: var(--border-radius);
+    font-weight: 500;
+    border: 1px solid transparent;
+}
+.message-banner.error {
+    color: #c82333;
+    background-color: #fbe9e7;
+    border-color: #ffcdd2;
+}
+.message-banner.success {
+    color: #155724;
+    background-color: #d4edda;
+    border-color: #c3e6cb;
+}
+.premium-badge {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background-color: var(--secondary-color);
+    color: var(--text-color);
+    font-size: 10pt;
+    font-weight: bold;
+    padding: 4px 10px;
+    border-radius: 20px;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+@keyframes spin { 100% { transform: rotate(360deg); } }
+.loading-spinner {
+    display: inline-block;
+    border: 3px solid rgba(255, 255, 255, 0.3);
+    border-radius: 50%;
+    border-top-color: var(--white);
+    width: 20px;
+    height: 20px;
+    animation: spin 1s linear infinite;
+}
+
+
