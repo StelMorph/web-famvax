@@ -1,9 +1,9 @@
 import React, { useContext, useState, useEffect, useRef } from 'react';
-import { AppContext } from '../../contexts/AppContext';
+import { AppContext } from '../../contexts/AppContext.js';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faTrashAlt, faSpinner, faTimes } from '@fortawesome/free-solid-svg-icons'; // Import faTimes
 import DatePicker, { formatDateForDisplay } from '../common/DatePicker.jsx';
-import api from '../../api/apiService';
+import api from '../../api/apiService.js';
 
 const INITIAL_FORM_STATE = { vaccineName: '', vaccineType: 'Standard', dose: '', date: '', nextDueDate: '', lot: '', clinic: '', notes: '', sideEffects: '' };
 
