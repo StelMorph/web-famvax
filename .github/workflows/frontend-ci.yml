@@ -1,0 +1,21 @@
+name: frontend-ci
+
+on:
+  pull_request:
+    branches: [main]
+    paths: ["frontend/**", ".github/workflows/frontend-ci.yml"]
+  workflow_dispatch:  # lets you run it manually once
+
+jobs:
+  frontend-ci:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "18"
+          cache: "npm"
+      - run: npm ci --workspace frontend
+      - run: npm run lint --workspace frontend --if-present
+      - run: npm test --workspace frontend -- --ci --passWithNoTests
+      - run: npm run build --workspace frontend --if-present
