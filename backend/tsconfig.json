@@ -20,13 +20,16 @@
     "inlineSources": true,
     "experimentalDecorators": true,
     "strictPropertyInitialization": false,
-    "typeRoots": [
-      "./node_modules/@types"
+    "rootDir": ".",
+    "types": [
+      "vitest/globals",
+      "node"
     ],
-      "rootDir": "."
+    "isolatedModules": true
   },
   "exclude": [
     "node_modules",
-    "cdk.out"
+    "cdk.out",
+    "vitest.config.*"
   ]
 }

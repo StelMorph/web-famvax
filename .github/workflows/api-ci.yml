@@ -18,4 +18,4 @@ jobs:
       - run: npm ci
       - run: npm run lint --workspace backend --if-present
       - run: npm run typecheck --workspace backend --if-present
-      - run: npm run test --workspace backend --if-present -- --ci --passWithNoTests
+      - run: npm run test --workspace backend --if-present
