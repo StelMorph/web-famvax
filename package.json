@@ -2,7 +2,7 @@
     "name": "famvax",
     "private": true,
     "workspaces": ["frontend", "backend"],
-    "engines": { "node": ">=18 <20" },
+    "engines": { "node": ">=22 <23" },
     "scripts": {
       "bootstrap": "npm ci --workspace frontend && npm ci --workspace backend --if-present",
       "lint": "npm -w frontend run lint --if-present && npm -w backend run lint --if-present",
