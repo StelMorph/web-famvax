@@ -13,7 +13,7 @@ import * as path from 'path';
 // Helper function to create a standard Node.js Lambda function
 const createNodejsFunction = (scope: Construct, id: string, entry: string, environment: { [key: string]: string }, layers: cdk.aws_lambda.ILayerVersion[]) => {
     return new lambda.NodejsFunction(scope, id, {
-        runtime: Runtime.NODEJS_18_X,
+        runtime: Runtime.NODEJS_22_X,
         entry: path.join(__dirname, `../lambda-fns/${entry}`),
         handler: 'handler',
         layers: layers,
@@ -88,7 +88,7 @@ export class BackendStack extends cdk.Stack {
     // --- 3. Lambda Layer for Shared Code ---
     const commonLayer = new cdk.aws_lambda.LayerVersion(this, 'CommonLayer', {
       code: cdk.aws_lambda.Code.fromAsset(path.join(__dirname, '../lambda-fns/common')),
-      compatibleRuntimes: [Runtime.NODEJS_18_X],
+      compatibleRuntimes: [Runtime.NODEJS_22_X],
       description: 'Contains shared clients and auth helper functions',
     });
     
