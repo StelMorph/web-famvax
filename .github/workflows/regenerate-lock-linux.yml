@@ -1,0 +1,35 @@
+name: regenerate-lock-linux
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write    # allow pushing a branch/PR
+
+jobs:
+  regen:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Recreate lockfile on Linux
+        run: |
+          rm -rf node_modules frontend/node_modules backend/node_modules || true
+          rm -f package-lock.json
+          npm install
+
+      # Open a PR with the new lockfile
+      - name: Create PR
+        uses: peter-evans/create-pull-request@v6
+        with:
+          branch: chore/linux-lockfile
+          commit-message: "build: regenerate lockfile on Linux for reproducible CI"
+          title: "build: regenerate lockfile on Linux"
+          body: "Regenerate root package-lock.json on Linux so npm ci + rollup/vite builds are reliable."
+          add-paths: |
+            package-lock.json
