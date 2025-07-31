@@ -23,7 +23,12 @@
     "typeRoots": [
       "./node_modules/@types"
     ],
-      "rootDir": "."
+    "rootDir": ".",
+    "types": [
+      "vitest/globals",
+      "node"
+    ],
+    "isolatedModules": true
   },
   "exclude": [
     "node_modules",
