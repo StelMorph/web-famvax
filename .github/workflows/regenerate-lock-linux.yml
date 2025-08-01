@@ -1,0 +1,31 @@
+name: regenerate-lock-linux
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  regen:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Recreate lockfile on Linux with Node 22
+        run: |
+          rm -rf node_modules frontend/node_modules backend/node_modules || true
+          rm -f package-lock.json
+          npm install
+      - name: Create PR
+        uses: peter-evans/create-pull-request@v6
+        with:
+          branch: chore/linux-lockfile-node22
+          commit-message: "build: regenerate lockfile on Linux (Node 22)"
+          title: "build: regenerate lockfile on Linux (Node 22)"
+          body: "Regenerate root package-lock.json on Linux under Node 22 so npm ci is deterministic in CI."
+          add-paths: |
+            package-lock.json

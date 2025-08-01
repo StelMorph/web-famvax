@@ -1,0 +1,23 @@
+[
+ {
+  "RuleID": "aws-access-token",
+  "Description": "Identified a pattern that may indicate AWS credentials, risking unauthorized cloud resource access and data breaches on AWS platforms.",
+  "StartLine": 3,
+  "EndLine": 3,
+  "StartColumn": 13,
+  "EndColumn": 32,
+  "Match": "REDACTED",
+  "Secret": "REDACTED",
+  "File": "aws.credentials",
+  "SymlinkFile": "",
+  "Commit": "518f47959d60e476827dcc821325f3159abef080",
+  "Link": "https://github.com/StelMorph/web-famvax/blob/518f47959d60e476827dcc821325f3159abef080/aws.credentials#L3",
+  "Entropy": 3.8841836,
+  "Author": "Volodymyr Stelmakh",
+  "Email": "stelmorph@gmail.com",
+  "Date": "2025-07-30T12:23:00Z",
+  "Message": "chore: initial commit",
+  "Tags": [],
+  "Fingerprint": "518f47959d60e476827dcc821325f3159abef080:aws.credentials:aws-access-token:3"
+ }
+]
