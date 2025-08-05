@@ -1,0 +1,4 @@
+prettier.js
+commitlint.config.cjs
+vite.config.js
+*.config.js
