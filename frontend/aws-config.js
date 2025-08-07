@@ -1,15 +1,12 @@
-// src/aws-config.js
-
 const awsConfig = {
-    cognito: {
-      userPoolId: 'eu-north-1_CuJrzzolT',
-      userPoolClientId: '5vc06v3urihkdqqesfooo2qj2d',
-      region: 'eu-north-1',
-    },
-    api: {
-      // Corrected URL without the trailing slash
-      invokeUrl: 'https://3f7lur00l1.execute-api.eu-north-1.amazonaws.com',
-    },
-  };
-  
-  export default awsConfig;
+  cognito: {
+    userPoolId: import.meta.env.VITE_COGNITO_USER_POOL_ID,
+    userPoolClientId: import.meta.env.VITE_COGNITO_CLIENT_ID,
+    region: import.meta.env.VITE_AWS_REGION,
+  },
+  api: {
+    invokeUrl: import.meta.env.VITE_API_URL,
+  },
+};
+
+export default awsConfig;

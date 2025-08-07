@@ -1,21 +1,49 @@
 {
   "name": "famvax",
+  "type": "module",
   "private": true,
   "workspaces": [
     "frontend",
     "backend"
   ],
-  "engines": {
-    "node": ">=22 <23"
-  },
   "scripts": {
-    "bootstrap": "npm ci --workspace frontend && npm ci --workspace backend --if-present",
-    "lint": "npm -w frontend run lint --if-present && npm -w backend run lint --if-present",
-    "test": "npm -w frontend test --if-present && npm -w backend test --if-present",
-    "build": "npm -w frontend run build --if-present",
-    "prepare": "husky"
+    "dev": "vite",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "prepare": "husky install"
+  },
+  "lint-staged": {
+    "*.{js,ts,jsx,tsx}": [
+      "eslint --fix",
+      "prettier --write"
+    ]
+  },
+  "prettier": "./prettier.cjs",
+  "commitlint": {
+    "extends": [
+      "./commitlint.config.cjs"
+    ]
   },
   "devDependencies": {
-    "husky": "^9.1.7"
+    "@commitlint/cli": "^19.8.1",
+    "@commitlint/config-conventional": "^19.8.1",
+    "@eslint/js": "^8.57.0",
+    "@types/node": "^24.2.0",
+    "@typescript-eslint/eslint-plugin": "^6.21.0",
+    "@typescript-eslint/parser": "^6.21.0",
+    "@typescript-eslint/utils": "^6.21.0",
+    "eslint": "^8.57.1",
+    "eslint-config-prettier": "^9.1.2",
+    "eslint-plugin-jsx-a11y": "^6.10.2",
+    "eslint-plugin-prettier": "^5.1.3",
+    "eslint-plugin-react": "^7.37.5",
+    "eslint-plugin-react-hooks": "^4.6.2",
+    "husky": "^9.0.11",
+    "lint-staged": "^15.2.2",
+    "prettier": "^3.6.2",
+    "typescript": "^5.4.5",
+    "typescript-eslint": "^7.9.0",
+    "vite": "^7.0.6",
+    "vitest": "^3.2.4"
   }
 }

@@ -1,0 +1,47 @@
+name: Frontend
+
+on:
+  pull_request:
+    paths:
+      - 'frontend/**'
+      - 'package.json'
+      - 'package-lock.json'
+  workflow_dispatch:
+
+jobs:
+  frontend:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Lint only changed or owned files
+        working-directory: frontend
+        run: |
+          git fetch origin main
+          FILES=$(git diff --name-only origin/main...HEAD -- '*.ts' '*.tsx' '*.js' '*.jsx' | tr '\n' ' ')
+          if [ -n "$FILES" ]; then
+            echo "Linting changed files: $FILES"
+            npx eslint $FILES --fix
+          else
+            echo "No files to lint."
+          fi
+
+
+      - name: Lint frontend
+        run: npx eslint frontend/src --ext .js,.jsx
+
+      - name: Test
+        run: npm run test --workspace frontend --if-present -- --ci --passWithNoTests
+
+      - name: Build
+        run: npm run build --workspace frontend --if-present
