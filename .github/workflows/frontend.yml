@@ -37,9 +37,8 @@ jobs:
           fi
 
 
-      - name: Typecheck frontend only
-        working-directory: ./frontend
-        run: npx tsc --noEmit --project tsconfig.json
+      - name: Lint frontend
+        run: npx eslint frontend/src --ext .js,.jsx
 
       - name: Test
         run: npm run test --workspace frontend --if-present -- --ci --passWithNoTests

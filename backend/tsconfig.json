@@ -19,10 +19,7 @@
     "experimentalDecorators": true,
     "strictPropertyInitialization": false,
     "rootDir": ".",
-    "types": [
-      "vitest/globals",
-      "node"
-    ],
+    "types": ["vitest/globals", "node"],
     "isolatedModules": true
   },
   "exclude": [
