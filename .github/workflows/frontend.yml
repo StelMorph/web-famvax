@@ -37,8 +37,9 @@ jobs:
           fi
 
 
-      - name: Typecheck
-        run: npm run typecheck --workspace frontend --if-present
+      - name: Typecheck frontend only
+        working-directory: ./frontend
+        run: npx tsc --noEmit --project tsconfig.json
 
       - name: Test
         run: npm run test --workspace frontend --if-present -- --ci --passWithNoTests
