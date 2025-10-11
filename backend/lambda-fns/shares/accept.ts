@@ -1,74 +1,68 @@
-import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
-import { GetCommand, UpdateCommand } from '@aws-sdk/lib-dynamodb';
+// backend/lambda-fns/shares/accept.ts
+import { UpdateCommand, DeleteCommand } from '@aws-sdk/lib-dynamodb';
 import { docClient, CORS_HEADERS } from '../common/clients';
+import { createHandler, AuthenticatedHandler } from '../common/middleware';
+import { z } from 'zod';
+import { logAuditEvent } from '../audit/audit';
 
-export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
-  if (event.httpMethod === 'OPTIONS') {
-    return { statusCode: 204, headers: CORS_HEADERS, body: '' };
+const AcceptShareSchema = z.object({
+  accept: z.boolean(),
+});
+
+const acceptShareLogic: AuthenticatedHandler = async (event) => {
+  const { shareId } = event.pathParameters || {};
+  const { userId } = event.userContext;
+  const body = event.parsedBody as z.infer<typeof AcceptShareSchema>;
+
+  if (!shareId) {
+    return {
+      statusCode: 400,
+      headers: CORS_HEADERS,
+      body: JSON.stringify({ message: 'Missing shareId' }),
+    };
   }
-  try {
-    const userId = event.requestContext.authorizer?.jwt.claims.sub;
-    const userEmail = event.requestContext.authorizer?.jwt.claims.email;
-    const { shareId } = event.pathParameters || {};
 
-    if (!shareId || !userId || !userEmail) {
-      return {
-        statusCode: 400,
-        headers: CORS_HEADERS,
-        body: JSON.stringify({ message: 'Missing required parameters.' }),
-      };
-    }
-
-    const shareResult = await docClient.send(
-      new GetCommand({
+  if (body.accept) {
+    // User is ACCEPTING the share
+    const { Attributes } = await docClient.send(
+      new UpdateCommand({
         TableName: process.env.SHARE_INVITES_TABLE_NAME!,
         Key: { shareId },
+        UpdateExpression: 'SET #status = :accepted, updatedAt = :ts',
+        ExpressionAttributeNames: { '#status': 'status' },
+        ExpressionAttributeValues: {
+          ':accepted': 'ACCEPTED',
+          ':ts': new Date().toISOString(),
+        },
+        ConditionExpression: 'attribute_exists(shareId)', // Ensure the share exists
+        ReturnValues: 'ALL_NEW',
       }),
     );
-    const currentInvite = shareResult.Item;
 
-    if (!currentInvite || currentInvite.inviteeEmail !== userEmail) {
-      return {
-        statusCode: 403,
-        headers: CORS_HEADERS,
-        body: JSON.stringify({
-          message: 'Forbidden: You are not the invitee or the invite does not exist.',
-        }),
-      };
-    }
-
-    const updateCmd = new UpdateCommand({
-      TableName: process.env.SHARE_INVITES_TABLE_NAME!,
-      Key: { shareId },
-      UpdateExpression: 'set #status = :status, #inviteeId = :inviteeId, #updatedAt = :ts',
-      ExpressionAttributeNames: {
-        '#status': 'status',
-        '#inviteeId': 'inviteeId',
-        '#updatedAt': 'updatedAt',
-      },
-      ExpressionAttributeValues: {
-        ':status': 'ACCEPTED',
-        ':inviteeId': userId,
-        ':ts': new Date().toISOString(),
-      },
-      ReturnValues: 'ALL_NEW',
-    });
-
-    const { Attributes } = await docClient.send(updateCmd);
-    return {
-      statusCode: 200,
-      headers: CORS_HEADERS,
-      body: JSON.stringify(Attributes),
-    };
-  } catch (error: any) {
-    console.error('Error accepting share:', error);
-    return {
-      statusCode: 500,
-      headers: CORS_HEADERS,
-      body: JSON.stringify({
-        message: 'Internal Server Error',
-        error: error.message,
+    await logAuditEvent({ userId, action: 'ACCEPT_SHARE', resource: shareId });
+    return { statusCode: 200, headers: CORS_HEADERS, body: JSON.stringify(Attributes) };
+  } else {
+    // FIX: User is REJECTING the share, so we delete the invitation record.
+    await docClient.send(
+      new DeleteCommand({
+        TableName: process.env.SHARE_INVITES_TABLE_NAME!,
+        Key: { shareId },
+        ConditionExpression: 'attribute_exists(shareId)', // Ensure the share exists
       }),
-    };
+    );
+
+    // Note: We don't log an audit event for a rejected (deleted) share.
+    return { statusCode: 204, headers: CORS_HEADERS, body: '' };
   }
 };
+
+export const handler = createHandler({
+  schema: AcceptShareSchema,
+  handler: acceptShareLogic,
+  access: (event) => ({
+    requireDevice: true,
+    enforceDeviceLimit: true,
+    // Note: We don't need profile-level access checks here,
+    // as the user is acting on a share they received directly.
+  }),
+});

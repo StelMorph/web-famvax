@@ -1,5 +1,5 @@
 import { GetCommand, QueryCommand } from '@aws-sdk/lib-dynamodb';
-import { docClient } from './clients';
+import { docClient } from '../common/clients';
 
 export type Role = 'Viewer' | 'Editor' | 'Owner';
 

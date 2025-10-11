@@ -1,96 +1,124 @@
-import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
+// backend/lambda-fns/vaccines/update.ts
 import { GetCommand, UpdateCommand } from '@aws-sdk/lib-dynamodb';
 import { docClient, CORS_HEADERS } from '../common/clients';
-import { checkPermissions } from '../common/auth';
+import { createHandler, AuthenticatedHandler } from '../common/middleware';
+import { logAuditEvent } from '../audit/audit';
+import { z } from 'zod';
 
-export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
-  if (event.httpMethod === 'OPTIONS') {
-    return { statusCode: 204, headers: CORS_HEADERS, body: '' };
+// Schema for updatable fields. All are optional.
+const updateVaccineSchema = z.object({
+  vaccineName: z.string().min(1).optional(),
+  date: z.string().optional().nullable(),
+  dose: z.string().optional().nullable(),
+  nextDueDate: z.string().optional().nullable(),
+  vaccineType: z.string().optional(), // Added missing fields
+  lot: z.string().optional().nullable(),
+  clinic: z.string().optional().nullable(),
+  notes: z.string().optional().nullable(),
+  sideEffects: z.string().optional().nullable(),
+});
+
+type VaccineUpdateData = z.infer<typeof updateVaccineSchema>;
+
+const updateVaccineLogic: AuthenticatedHandler = async (event) => {
+  const { profileId, vaccineId } = event.pathParameters || {};
+  const updateData = event.parsedBody as VaccineUpdateData;
+  const { userId, email } = event.userContext;
+
+  if (!profileId || !vaccineId) {
+    return {
+      statusCode: 400,
+      body: JSON.stringify({ message: 'Profile ID and Vaccine ID are required.' }),
+    };
   }
-  try {
-    const userId = event.requestContext.authorizer?.jwt.claims.sub;
-    const userEmail = event.requestContext.authorizer?.jwt.claims.email;
-    const { vaccineId } = event.pathParameters || {};
-    const data = JSON.parse(event.body || '{}');
 
-    if (!vaccineId || !userId || !userEmail) {
-      return {
-        statusCode: 400,
-        headers: CORS_HEADERS,
-        body: JSON.stringify({ message: 'Missing required parameters.' }),
-      };
-    }
-
-    const vaccineResult = await docClient.send(
-      new GetCommand({
-        TableName: process.env.VACCINES_TABLE_NAME!,
-        Key: { vaccineId },
-      }),
-    );
-    const profileId = vaccineResult.Item?.profileId;
-    if (!profileId) {
-      return {
-        statusCode: 404,
-        headers: CORS_HEADERS,
-        body: JSON.stringify({ message: 'Vaccine record not found.' }),
-      };
-    }
-
-    const canEdit = await checkPermissions(userId, userEmail, profileId, 'Editor');
-    if (!canEdit) {
-      return {
-        statusCode: 403,
-        headers: CORS_HEADERS,
-        body: JSON.stringify({
-          message: 'Forbidden: You do not have permission to edit this record.',
-        }),
-      };
-    }
-
-    const command = new UpdateCommand({
+  const { Item: originalVaccine } = await docClient.send(
+    new GetCommand({
       TableName: process.env.VACCINES_TABLE_NAME!,
       Key: { vaccineId },
-      UpdateExpression:
-        'set #name = :name, #date = :date, #dose = :dose, #nextDueDate = :nextDueDate, #vaccineType = :vaccineType, #lot = :lot, #clinic = :clinic, #notes = :notes, #sideEffects = :sideEffects',
-      ExpressionAttributeNames: {
-        '#name': 'vaccineName',
-        '#date': 'date',
-        '#dose': 'dose',
-        '#nextDueDate': 'nextDueDate',
-        '#vaccineType': 'vaccineType',
-        '#lot': 'lot',
-        '#clinic': 'clinic',
-        '#notes': 'notes',
-        '#sideEffects': 'sideEffects',
-      },
-      ExpressionAttributeValues: {
-        ':name': data.vaccineName,
-        ':date': data.date,
-        ':dose': data.dose,
-        ':nextDueDate': data.nextDueDate,
-        ':vaccineType': data.vaccineType,
-        ':lot': data.lot,
-        ':clinic': data.clinic,
-        ':notes': data.notes,
-        ':sideEffects': data.sideEffects,
-      },
-      ReturnValues: 'ALL_NEW',
-    });
-    const { Attributes } = await docClient.send(command);
+    }),
+  );
+
+  if (!originalVaccine || originalVaccine.profileId !== profileId) {
     return {
-      statusCode: 200,
-      headers: CORS_HEADERS,
-      body: JSON.stringify(Attributes),
-    };
-  } catch (error: any) {
-    console.error('Error updating vaccine:', error);
-    return {
-      statusCode: 500,
-      headers: CORS_HEADERS,
+      statusCode: 404,
       body: JSON.stringify({
-        message: 'Internal Server Error',
-        error: error.message,
+        message: 'Vaccine record not found or does not belong to this profile.',
       }),
     };
   }
+
+  const updateExpressionParts: string[] = [];
+  const expressionAttributeNames: Record<string, string> = {};
+  const expressionAttributeValues: Record<string, unknown> = { ':pid': profileId };
+
+  // Add updatedAt timestamp to every update
+  updateExpressionParts.push('#updatedAt = :updatedAt');
+  expressionAttributeNames['#updatedAt'] = 'updatedAt';
+  expressionAttributeValues[':updatedAt'] = new Date().toISOString();
+
+  for (const [key, value] of Object.entries(updateData)) {
+    if (value !== undefined) {
+      expressionAttributeNames[`#${key}`] = key;
+      expressionAttributeValues[`:${key}`] = value;
+      updateExpressionParts.push(`#${key} = :${key}`);
+    }
+  }
+
+  if (Object.keys(updateData).length === 0) {
+    return { statusCode: 200, body: JSON.stringify(originalVaccine) };
+  }
+
+  // --- DEFINITIVE FIX: Configure the command to return the newly updated item ---
+  const { Attributes: updatedVaccine } = await docClient.send(
+    new UpdateCommand({
+      TableName: process.env.VACCINES_TABLE_NAME!,
+      Key: { vaccineId },
+      UpdateExpression: `SET ${updateExpressionParts.join(', ')}`,
+      ConditionExpression: 'attribute_exists(vaccineId) AND profileId = :pid',
+      ExpressionAttributeNames: expressionAttributeNames,
+      ExpressionAttributeValues: expressionAttributeValues,
+      ReturnValues: 'ALL_NEW', // This is the critical change
+    }),
+  );
+
+  const changes = Object.entries(updateData)
+    .map(([key, newValue]) => {
+      const oldValue = originalVaccine[key];
+      if (newValue !== oldValue) {
+        return {
+          field: key.replace(/([A-Z])/g, ' $1').replace(/^./, (str) => str.toUpperCase()),
+          from: oldValue || 'empty',
+          to: newValue || 'empty',
+        };
+      }
+      return null;
+    })
+    .filter(Boolean);
+
+  if (changes.length > 0) {
+    await logAuditEvent({
+      userId,
+      action: 'UPDATE_VACCINE',
+      resource: profileId,
+      details: {
+        actorEmail: email,
+        vaccineId: vaccineId,
+        vaccineName: updatedVaccine?.vaccineName || originalVaccine.vaccineName,
+        changes: changes,
+      },
+    });
+  }
+
+  // --- DEFINITIVE FIX: Return the full updated vaccine object in the response body ---
+  return { statusCode: 200, body: JSON.stringify(updatedVaccine) };
 };
+
+export const handler = createHandler({
+  schema: updateVaccineSchema,
+  handler: updateVaccineLogic,
+  access: (event) => ({
+    requireDevice: true,
+    profile: { id: event.pathParameters?.profileId, requiredRole: 'Editor' },
+  }),
+});

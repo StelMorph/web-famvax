@@ -1,0 +1,485 @@
+openapi: 3.0.3
+info:
+  title: FamVax API
+  description: API for managing family vaccination records, profiles, and subscriptions.
+  version: 1.0.0
+servers:
+  - url: https://{apiId}.execute-api.{region}.amazonaws.com/
+    variables:
+      apiId:
+        default: 'CHANGEME' # Replace with your actual API Gateway ID from CDK outputs
+      region:
+        default: 'eu-north-1' # Replace with your AWS region
+
+paths:
+  /profiles:
+    get:
+      tags:
+        - Profiles
+      summary: List User Profiles
+      description: Retrieves a list of all profiles owned by the authenticated user.
+      security:
+        - CognitoAuth: []
+      responses:
+        '200':
+          description: A list of user profiles.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Profile'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    post:
+      tags:
+        - Profiles
+      summary: Create Profile
+      description: Creates a new family member profile for the authenticated user.
+      security:
+        - CognitoAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProfileInput'
+      responses:
+        '201':
+          description: The profile was created successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Profile'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /profiles/{profileId}:
+    parameters:
+      - $ref: '#/components/parameters/ProfileId'
+    get:
+      tags:
+        - Profiles
+      summary: Get Profile by ID
+      description: Retrieves a single profile by its unique ID. The user must be the owner or have been granted access via a share.
+      security:
+        - CognitoAuth: []
+      responses:
+        '200':
+          description: A single profile object.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Profile'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      tags:
+        - Profiles
+      summary: Update Profile
+      description: Updates the details of an existing profile. The user must be the owner or an editor.
+      security:
+        - CognitoAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProfileInput'
+      responses:
+        '200':
+          description: The updated profile object.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Profile'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    delete:
+      tags:
+        - Profiles
+      summary: Delete Profile
+      description: Deletes a profile and all its associated vaccines and shares. Only the owner can perform this action.
+      security:
+        - CognitoAuth: []
+      responses:
+        '204':
+          description: The profile was deleted successfully.
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /profiles/{profileId}/vaccines:
+    parameters:
+      - $ref: '#/components/parameters/ProfileId'
+    get:
+      tags:
+        - Vaccines
+      summary: List Vaccines for a Profile
+      description: Retrieves all vaccination records for a specific profile.
+      security:
+        - CognitoAuth: []
+      responses:
+        '200':
+          description: A list of vaccine records.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Vaccine'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    post:
+      tags:
+        - Vaccines
+      summary: Create Vaccine Record
+      description: Adds a new vaccination record to a profile.
+      security:
+        - CognitoAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VaccineInput'
+      responses:
+        '201':
+          description: Vaccine record created.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Vaccine'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  
+  /vaccines/{vaccineId}:
+    parameters:
+      - $ref: '#/components/parameters/VaccineId'
+    put:
+      tags:
+        - Vaccines
+      summary: Update Vaccine Record
+      description: Updates an existing vaccination record.
+      security:
+        - CognitoAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VaccineInput'
+      responses:
+        '200':
+          description: The updated vaccine record.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Vaccine'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    delete:
+      tags:
+        - Vaccines
+      summary: Delete Vaccine Record
+      description: Deletes a specific vaccination record.
+      security:
+        - CognitoAuth: []
+      responses:
+        '204':
+          description: Vaccine record deleted successfully.
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /subscription:
+    get:
+      tags:
+        - Subscription
+      summary: Get Subscription Status
+      description: Retrieves the current active subscription for the authenticated user.
+      security:
+        - CognitoAuth: []
+      responses:
+        '200':
+          description: The active subscription object.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Subscription'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    post:
+      tags:
+        - Subscription
+      summary: Create Subscription
+      description: Creates a new subscription for the user.
+      security:
+        - CognitoAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SubscriptionInput'
+      responses:
+        '201':
+          description: The created subscription object.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Subscription'
+    patch:
+      tags:
+        - Subscription
+      summary: Update Subscription Status
+      description: Updates the subscription status, e.g., to cancel or resume.
+      security:
+        - CognitoAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SubscriptionUpdateInput'
+      responses:
+        '200':
+          description: The updated subscription object.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Subscription'
+
+  /subscription/history:
+    get:
+      tags:
+        - Subscription
+      summary: Get Subscription History
+      description: Retrieves a list of all past and present subscriptions for the user.
+      security:
+        - CognitoAuth: []
+      responses:
+        '200':
+          description: A list of subscription records.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Subscription'
+
+  /shares/received:
+    get:
+      tags:
+        - Sharing
+      summary: List Received Shares
+      description: Lists all profiles that have been shared with the authenticated user.
+      security:
+        - CognitoAuth: []
+      responses:
+        '200':
+          description: A list of share objects.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Share'
+
+  /shares/{shareId}/accept:
+    parameters:
+      - $ref: '#/components/parameters/ShareId'
+    put:
+      tags:
+        - Sharing
+      summary: Accept a Share Invitation
+      description: Marks a pending share invitation as 'ACCEPTED'.
+      security:
+        - CognitoAuth: []
+      responses:
+        '200':
+          description: The updated share object with 'ACCEPTED' status.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Share'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  
+  /shares/{shareId}:
+    parameters:
+      - $ref: '#/components/parameters/ShareId'
+    delete:
+      tags:
+        - Sharing
+      summary: Delete/Reject a Share
+      description: Can be used by the owner to revoke a share, or by the invitee to reject/leave a share.
+      security:
+        - CognitoAuth: []
+      responses:
+        '204':
+          description: Share deleted successfully.
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+components:
+  schemas:
+    Profile:
+      type: object
+      properties:
+        profileId: { type: string, format: uuid }
+        userId: { type: string }
+        name: { type: string, example: "Jane Doe" }
+        dob: { type: string, format: date, example: "2020-01-30" }
+        relationship: { type: string, example: "Child" }
+        gender: { type: string, example: "Female" }
+        bloodType: { type: string, example: "O+" }
+        allergies: { type: string, example: "Peanuts" }
+        medicalConditions: { type: string, example: "Asthma" }
+        avatarColor: { type: string, example: "avatar-blue" }
+    ProfileInput:
+      type: object
+      properties:
+        name: { type: string, example: "Jane Doe" }
+        dob: { type: string, format: date, example: "2020-01-30" }
+        relationship: { type: string, example: "Child" }
+        gender: { type: string, example: "Female" }
+        bloodType: { type: string, example: "O+" }
+        allergies: { type: string, example: "Peanuts" }
+        medicalConditions: { type: string, example: "Asthma" }
+        avatarColor: { type: string, example: "avatar-blue" }
+    Vaccine:
+      type: object
+      properties:
+        vaccineId: { type: string, format: uuid }
+        profileId: { type: string, format: uuid }
+        vaccineName: { type: string, example: "MMR" }
+        vaccineType: { type: string, example: "Standard" }
+        dose: { type: string, example: "1 of 2" }
+        date: { type: string, format: date, example: "2021-01-30" }
+        nextDueDate: { type: string, format: date, example: "2025-01-30" }
+        lot: { type: string, example: "AB12345" }
+        clinic: { type: string, example: "City General Hospital" }
+        notes: { type: string }
+        sideEffects: { type: string }
+    VaccineInput:
+      type: object
+      properties:
+        vaccineName: { type: string, example: "MMR" }
+        vaccineType: { type: string, example: "Standard" }
+        dose: { type: string, example: "1 of 2" }
+        date: { type: string, format: date, example: "2021-01-30" }
+        nextDueDate: { type: string, format: date, example: "2025-01-30" }
+        lot: { type: string, example: "AB12345" }
+        clinic: { type: string, example: "City General Hospital" }
+        notes: { type: string }
+        sideEffects: { type: string }
+    Subscription:
+      type: object
+      properties:
+        userId: { type: string }
+        plan: { type: string, enum: [monthly, yearly] }
+        status: { type: string, enum: [active, canceled, expired] }
+        endDate: { type: string, format: date }
+        createdAt: { type: string, format: date-time }
+        cancelAtPeriodEnd: { type: boolean }
+    SubscriptionInput:
+      type: object
+      required: [plan, endDate]
+      properties:
+        plan: { type: string, enum: [monthly] }
+        endDate: { type: string, format: date }
+    SubscriptionUpdateInput:
+      type: object
+      required: [cancelAtPeriodEnd]
+      properties:
+        cancelAtPeriodEnd: { type: boolean }
+    Share:
+      type: object
+      properties:
+        shareId: { type: string, format: uuid }
+        profileId: { type: string, format: uuid }
+        ownerId: { type: string }
+        inviteeId: { type: string }
+        inviteeEmail: { type: string, format: email }
+        role: { type: string, enum: [Viewer, Editor] }
+        status: { type: string, enum: [PENDING, ACCEPTED] }
+        profileName: { type: string }
+        ownerEmail: { type: string, format: email }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+
+  parameters:
+    ProfileId:
+      name: profileId
+      in: path
+      required: true
+      description: The ID of the profile.
+      schema:
+        type: string
+        format: uuid
+    VaccineId:
+      name: vaccineId
+      in: path
+      required: true
+      description: The ID of the vaccine record.
+      schema:
+        type: string
+        format: uuid
+    ShareId:
+      name: shareId
+      in: path
+      required: true
+      description: The ID of the share invitation.
+      schema:
+        type: string
+        format: uuid
+  
+  responses:
+    Unauthorized:
+      description: Unauthorized. The request requires authentication and the user is not logged in.
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              message: { type: string, example: "Unauthorized" }
+    Forbidden:
+      description: Forbidden. The user is authenticated but does not have permission to perform this action.
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              message: { type: string, example: "Forbidden" }
+    NotFound:
+      description: The requested resource was not found.
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              message: { type: string, example: "Resource not found." }
+    BadRequest:
+      description: The request was malformed or missing required parameters.
+      content:
+        application/json: 
+          schema:
+            type: object
+            properties:
+              message: { type: string, example: "Invalid input provided." }
+
+  securitySchemes:
+    CognitoAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: "Authentication token (JWT) obtained from AWS Cognito upon login."

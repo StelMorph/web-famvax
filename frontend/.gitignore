@@ -6,8 +6,6 @@ dist/
 
 # Local env
 .env
-.env.local
-.env.*.local
 
 # Vite cache
 .vite/

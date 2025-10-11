@@ -1,61 +1,95 @@
-import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
-import { GetCommand } from '@aws-sdk/lib-dynamodb';
+// backend/lambda-fns/profiles/update.ts
+import { UpdateCommand } from '@aws-sdk/lib-dynamodb';
 import { docClient, CORS_HEADERS } from '../common/clients';
-import { checkPermissions } from '../common/auth';
+import { createHandler, type AuthenticatedHandler } from '../common/middleware';
+import { z } from 'zod';
+import { logAuditEvent } from '../audit/audit';
 
-export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
-  if (event.httpMethod === 'OPTIONS') {
-    return { statusCode: 204, headers: CORS_HEADERS, body: '' };
-  }
-  try {
-    const userId = event.requestContext.authorizer?.jwt.claims.sub;
-    const userEmail = event.requestContext.authorizer?.jwt.claims.email;
-    const { profileId } = event.pathParameters || {};
+const ALLOWED_KEYS = [
+  'name',
+  'dob',
+  'relationship',
+  'gender',
+  'bloodType',
+  'allergies',
+  'medicalConditions',
+  'avatarColor',
+] as const;
 
-    if (!profileId || !userId || !userEmail) {
-      return {
-        statusCode: 400,
-        headers: CORS_HEADERS,
-        body: JSON.stringify({ message: 'Missing parameters' }),
-      };
-    }
+const UpdateProfileSchema = z
+  .object({
+    name: z.string().min(1).optional(),
+    dob: z.string().optional(),
+    relationship: z.string().optional(),
+    gender: z.string().optional(),
+    bloodType: z.string().optional(),
+    allergies: z.string().optional(),
+    medicalConditions: z.string().optional(),
+    avatarColor: z.string().optional(),
+  })
+  // allow extra keys in the payload but we will strip them ourselves
+  .passthrough();
 
-    const hasAccess = await checkPermissions(userId, userEmail, profileId, 'Viewer');
-    if (!hasAccess) {
-      return {
-        statusCode: 403,
-        headers: CORS_HEADERS,
-        body: JSON.stringify({ message: 'Forbidden' }),
-      };
-    }
+const updateProfileLogic: AuthenticatedHandler = async (event) => {
+  const body = (event.parsedBody || {}) as z.infer<typeof UpdateProfileSchema>;
+  const { profileId } = event.pathParameters || {};
+  const { userId } = event.userContext;
 
-    const { Item } = await docClient.send(
-      new GetCommand({
-        TableName: process.env.PROFILES_TABLE_NAME!,
-        Key: { profileId },
-      }),
-    );
-    if (!Item) {
-      return {
-        statusCode: 404,
-        headers: CORS_HEADERS,
-        body: JSON.stringify({ message: 'Profile not found' }),
-      };
-    }
+  if (!profileId) {
     return {
-      statusCode: 200,
+      statusCode: 400,
       headers: CORS_HEADERS,
-      body: JSON.stringify(Item),
-    };
-  } catch (error: any) {
-    console.error(error);
-    return {
-      statusCode: 500,
-      headers: CORS_HEADERS,
-      body: JSON.stringify({
-        message: 'Internal Server Error',
-        error: error.message,
-      }),
+      body: JSON.stringify({ message: 'Missing profileId' }),
     };
   }
+
+  // Keep only allowed keys and drop undefined/empty strings
+  const cleaned = Object.fromEntries(
+    Object.entries(body).filter(
+      ([k, v]) => (ALLOWED_KEYS as readonly string[]).includes(k) && v !== undefined && v !== '',
+    ),
+  );
+  const entries = Object.entries(cleaned);
+  if (!entries.length) {
+    return {
+      statusCode: 400,
+      headers: CORS_HEADERS,
+      body: JSON.stringify({ message: 'No fields to update' }),
+    };
+  }
+
+  const EAN: Record<string, string> = {};
+  const EAV: Record<string, unknown> = {};
+  const set: string[] = [];
+  for (const [k, v] of entries) {
+    const nk = `#${k}`;
+    const vk = `:${k}`;
+    EAN[nk] = k;
+    EAV[vk] = v;
+    set.push(`${nk} = ${vk}`);
+  }
+
+  const { Attributes } = await docClient.send(
+    new UpdateCommand({
+      TableName: process.env.PROFILES_TABLE_NAME!,
+      Key: { profileId },
+      UpdateExpression: `SET ${set.join(', ')}`,
+      ExpressionAttributeNames: EAN,
+      ExpressionAttributeValues: EAV,
+      ReturnValues: 'ALL_NEW',
+    }),
+  );
+
+  await logAuditEvent({ userId, action: 'UPDATE_PROFILE', resourceId: profileId });
+  return { statusCode: 200, headers: CORS_HEADERS, body: JSON.stringify(Attributes) };
 };
+
+export const handler = createHandler({
+  schema: UpdateProfileSchema,
+  handler: updateProfileLogic,
+  access: (event) => ({
+    requireDevice: true,
+    enforceDeviceLimit: true,
+    profile: { id: event.pathParameters?.profileId, requiredRole: 'Editor' },
+  }),
+});

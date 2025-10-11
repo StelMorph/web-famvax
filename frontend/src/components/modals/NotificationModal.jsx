@@ -1,44 +1,45 @@
+// frontend/src/components/NotificationModal.jsx
 import React from 'react';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faCheckCircle, faExclamationTriangle, faInfoCircle, faQuestionCircle } from '@fortawesome/free-solid-svg-icons';
+import './NotificationModal.css';
 
-const NOTIFICATION_CONFIG = {
-    success: { icon: faCheckCircle, colorClass: 'success' },
-    error: { icon: faExclamationTriangle, colorClass: 'error' },
-    confirm: { icon: faQuestionCircle, colorClass: 'confirm' },
-    info: { icon: faInfoCircle, colorClass: 'info' },
-};
+const NotificationModal = ({ notification, onHide }) => {
+  if (!notification) return null;
+  const {
+    type = 'info',
+    title,
+    message,
+    confirmText = 'OK',
+    cancelText = 'Cancel',
+    onConfirm,
+  } = notification;
 
-function NotificationModal({ notification, onHide }) {
-    if (!notification) return null;
-    const config = NOTIFICATION_CONFIG[notification.type] || NOTIFICATION_CONFIG.info;
-
-    const handleConfirm = () => {
-        if (notification.onConfirm) notification.onConfirm();
-        onHide();
-    };
-
-    return (
-        <div className="modal-overlay">
-            <div className={`notification-modal modern ${config.colorClass}`}>
-                <div className="icon-circle">
-                    <FontAwesomeIcon icon={config.icon} className="modal-icon" />
-                </div>
-                <h2 className="modal-title">{notification.title}</h2>
-                <p className="modal-message">{notification.message}</p>
-                <div className="modal-buttons">
-                    {notification.type === 'confirm' && (
-                        <button className="btn btn-cancel" onClick={onHide}>
-                            {notification.cancelText || 'Cancel'}
-                        </button>
-                    )}
-                    <button className="btn btn-confirm" onClick={handleConfirm}>
-                        {notification.confirmText || 'OK'}
-                    </button>
-                </div>
-            </div>
+  return (
+    <div className={`notification-modal ${type}`}>
+      <div className="notification-card">
+        <div className="notification-header">
+          <div className="notification-icon">❗</div>
+          <h3>{title || 'Notice'}</h3>
         </div>
-    );
-}
+        {message && <p className="notification-message">{message}</p>}
+        <div className="notification-actions">
+          {type === 'confirm' && (
+            <button className="btn btn-light" onClick={onHide}>
+              {cancelText}
+            </button>
+          )}
+          <button
+            className={`btn ${type === 'error' ? 'btn-danger' : 'btn-primary'}`}
+            onClick={() => {
+              if (onConfirm) onConfirm();
+              onHide?.();
+            }}
+          >
+            {confirmText}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 export default NotificationModal;

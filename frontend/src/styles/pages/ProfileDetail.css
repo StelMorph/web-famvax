@@ -2,53 +2,268 @@
    Page: Profile Detail
    ========================================================================== */
 
-   .profile-detail-page { background-color: var(--light-gray); }
-   .profile-info-card, .vaccine-records-card { background-color: var(--white); border: 1px solid var(--medium-gray); border-radius: var(--border-radius); padding: 25px; margin-bottom: 25px; }
-   .profile-info-header { display: flex; justify-content: space-between; align-items: flex-start; padding-bottom: 20px; border-bottom: 1px solid var(--medium-gray); margin-bottom: 20px; }
-   .profile-info-main { display: flex; align-items: center; gap: 20px; }
-   .profile-avatar-large { width: 60px; height: 60px; border-radius: 50%; background-color: #007bff; color: white; display: flex; align-items: center; justify-content: center; font-size: 24px; flex-shrink: 0; }
-   .profile-name-large { font-size: 20pt; font-weight: 600; margin: 0 0 5px 0; }
-   .profile-sub-text { font-size: 14pt; color: var(--dark-gray); margin: 0; }
-   .profile-info-actions { display: flex; gap: 10px; }
-   .profile-details-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px 40px; }
-   .info-item-grid { display: flex; flex-direction: column; }
-   .info-label { font-size: 11pt; color: var(--dark-gray); margin-bottom: 4px; text-transform: uppercase; font-weight: 600; }
-   .info-value { font-size: 14pt; color: var(--text-color); }
-   .vaccine-records-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
-   .vaccine-title-group { display: flex; align-items: center; gap: 15px; }
-   .vaccine-title-group > .svg-inline--fa { font-size: 24px; color: var(--primary-color); }
-   .vaccine-title-group h3 { margin: 0; font-size: 16pt; }
-   .vaccine-title-group span { color: var(--dark-gray); font-size: 12pt; }
-   .vaccine-list .vaccine-item { display: flex; align-items: center; padding: 20px 10px; border-bottom: 1px solid var(--border-color); transition: background-color 0.1s ease; gap: 15px; }
-   .vaccine-list .vaccine-item.editable { cursor: pointer; }
-   .vaccine-list .vaccine-item:hover { background-color: var(--light-gray); }
-   .vaccine-item .vaccine-details { flex-grow: 1; display: flex; flex-direction: column; gap: 4px; }
-   .vaccine-item .vaccine-name { font-weight: 600; font-size: 16pt; }
-   .vaccine-item .vaccine-date { font-size: 14pt; color: var(--dark-gray); }
-   .vaccine-item .completed-icon { color: var(--success-color); }
-   .vaccine-item .upcoming-icon { color: var(--warning-color); }
-   .vaccine-item .edit-indicator { margin-left: auto; color: var(--dark-gray); opacity: 0; transition: opacity 0.2s ease; }
-   .vaccine-item.editable:hover .edit-indicator { opacity: 0.7; }
-   .vaccine-empty-state { text-align: center; padding: 40px 20px; border-top: 1px solid var(--medium-gray); margin-top: 20px; }
-   .vaccine-empty-state .empty-state-icon { width: 70px; height: 70px; border-radius: 50%; background-color: var(--light-gray); color: var(--dark-gray); display: flex; align-items: center; justify-content: center; margin: 0 auto 20px auto; font-size: 28px; }
-   .vaccine-empty-state h4 { font-size: 16pt; margin-bottom: 10px; }
-   .vaccine-empty-state p { color: var(--dark-gray); margin-bottom: 25px; }
+.profile-detail-page {
+  background-color: var(--light-gray);
+}
+.profile-info-card,
+.vaccine-records-card {
+  background-color: var(--white);
+  border: 1px solid var(--medium-gray);
+  border-radius: var(--border-radius);
+  padding: 25px;
+  margin-bottom: 25px;
+}
+.profile-info-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding-bottom: 20px;
+  border-bottom: 1px solid var(--medium-gray);
+  margin-bottom: 20px;
+}
+.profile-info-main {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+.profile-avatar-large {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background-color: #007bff;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  flex-shrink: 0;
+}
+.profile-name-large {
+  font-size: 20pt;
+  font-weight: 600;
+  margin: 0 0 5px 0;
+}
+.profile-sub-text {
+  font-size: 14pt;
+  color: var(--dark-gray);
+  margin: 0;
+}
+.profile-info-actions {
+  display: flex;
+  gap: 10px;
+}
+.profile-details-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 20px 40px;
+}
+.info-item-grid {
+  display: flex;
+  flex-direction: column;
+}
+.info-label {
+  font-size: 11pt;
+  color: var(--dark-gray);
+  margin-bottom: 4px;
+  text-transform: uppercase;
+  font-weight: 600;
+}
+.info-value {
+  font-size: 14pt;
+  color: var(--text-color);
+}
+.vaccine-records-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+.vaccine-title-group {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+.vaccine-title-group > .svg-inline--fa {
+  font-size: 24px;
+  color: var(--primary-color);
+}
+.vaccine-title-group h3 {
+  margin: 0;
+  font-size: 16pt;
+}
+.vaccine-title-group span {
+  color: var(--dark-gray);
+  font-size: 12pt;
+}
+.vaccine-list .vaccine-item {
+  display: flex;
+  align-items: center;
+  padding: 20px 10px;
+  border-bottom: 1px solid var(--border-color);
+  transition: background-color 0.1s ease;
+  gap: 15px;
+}
+.vaccine-list .vaccine-item.editable {
+  cursor: pointer;
+}
+.vaccine-list .vaccine-item:hover {
+  background-color: var(--light-gray);
+}
+.vaccine-item .vaccine-details {
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.vaccine-item .vaccine-name {
+  font-weight: 600;
+  font-size: 16pt;
+}
+.vaccine-item .vaccine-date {
+  font-size: 14pt;
+  color: var(--dark-gray);
+}
+.vaccine-item .completed-icon {
+  color: var(--success-color);
+}
+.vaccine-item .upcoming-icon {
+  color: var(--warning-color);
+}
+.vaccine-item .edit-indicator {
+  margin-left: auto;
+  color: var(--dark-gray);
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+.vaccine-item.editable:hover .edit-indicator {
+  opacity: 0.7;
+}
+.vaccine-empty-state {
+  text-align: center;
+  padding: 40px 20px;
+  border-top: 1px solid var(--medium-gray);
+  margin-top: 20px;
+}
+.vaccine-empty-state .empty-state-icon {
+  width: 70px;
+  height: 70px;
+  border-radius: 50%;
+  background-color: var(--light-gray);
+  color: var(--dark-gray);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 20px auto;
+  font-size: 28px;
+}
+.vaccine-empty-state h4 {
+  font-size: 16pt;
+  margin-bottom: 10px;
+}
+.vaccine-empty-state p {
+  color: var(--dark-gray);
+  margin-bottom: 25px;
+}
 
-   /* --- NEW --- */
-   .info-banner {
-       padding: 15px 20px;
-       border-radius: var(--border-radius);
-       margin-bottom: 25px;
-       display: flex;
-       align-items: center;
-       gap: 15px;
-       font-size: 13pt;
-   }
-   .info-banner.shared-banner {
-       background-color: #e7f3ff; /* Light blue */
-       border: 1px solid #b3d7ff;
-       color: #004085;
-   }
-   .info-banner .svg-inline--fa {
-       font-size: 18px;
-   }
+/* --- NEW --- */
+.info-banner {
+  padding: 15px 20px;
+  border-radius: var(--border-radius);
+  margin-bottom: 25px;
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  font-size: 13pt;
+}
+.info-banner.shared-banner {
+  background-color: #e7f3ff; /* Light blue */
+  border: 1px solid #b3d7ff;
+  color: #004085;
+}
+.info-banner .svg-inline--fa {
+  font-size: 18px;
+}
+/* --- Vaccination Filters Bar --- */
+.filters-row {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 12px;
+  align-items: end;
+  margin: 10px 0 6px 0;
+}
+.filters-col {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.filters-label {
+  font-size: 11pt;
+  color: var(--dark-gray);
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+/* responsive */
+@media (max-width: 900px) {
+  .filters-row {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+@media (max-width: 520px) {
+  .filters-row {
+    grid-template-columns: 1fr;
+  }
+}
+/* ---- Sort dropdown (styled list using existing tokens) ---- */
+.sort-dropdown {
+  position: relative;
+  width: 100%;
+}
+.sort-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  cursor: pointer;
+}
+
+/* panel */
+.sort-menu {
+  position: absolute;
+  left: 0; /* anchor to left edge of the trigger */
+  right: auto; /* was right: 0 */
+  top: calc(100% + 6px); /* sit right under the trigger */
+  width: 100%; /* match trigger width */
+  min-width: 100%; /* ensure it doesn't shrink */
+  background: var(--white);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.12);
+  z-index: 40;
+  padding: 6px;
+  max-height: 320px;
+  overflow: auto;
+}
+
+/* items */
+.sort-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--text-color);
+}
+.sort-item:hover {
+  background: rgba(30, 158, 148, 0.06);
+}
+.sort-item.active {
+  background: rgba(30, 158, 148, 0.12);
+  font-weight: 600;
+}
+.sort-check {
+  opacity: 0.9;
+}

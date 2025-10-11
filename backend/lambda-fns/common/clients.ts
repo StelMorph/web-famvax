@@ -1,3 +1,4 @@
+// backend/lambda-fns/common/clients.ts
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { DynamoDBDocumentClient } from '@aws-sdk/lib-dynamodb';
 import { CognitoIdentityProviderClient } from '@aws-sdk/client-cognito-identity-provider';
@@ -11,5 +12,6 @@ export const cognitoClient = new CognitoIdentityProviderClient({
 export const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+  // include device headers by default (dynamic CORS in middleware will still override/mirror)
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Device-Id, X-Device-Info',
 };

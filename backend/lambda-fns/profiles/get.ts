@@ -1,61 +1,46 @@
-import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
+// backend/lambda-fns/profiles/get.ts
 import { GetCommand } from '@aws-sdk/lib-dynamodb';
 import { docClient, CORS_HEADERS } from '../common/clients';
-import { checkPermissions } from '../common/auth';
+import { createHandler, AuthenticatedHandler } from '../common/middleware';
+// import { logAuditEvent } from '../common/audit'; // No longer needed here
+import { z } from 'zod';
 
-export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
-  if (event.httpMethod === 'OPTIONS') {
-    return { statusCode: 204, headers: CORS_HEADERS, body: '' };
+const getProfileLogic: AuthenticatedHandler = async (event) => {
+  const { profileId } = event.pathParameters || {};
+
+  if (!profileId) {
+    return { statusCode: 400, body: JSON.stringify({ message: 'Profile ID is required.' }) };
   }
-  try {
-    const userId = event.requestContext.authorizer?.jwt.claims.sub;
-    const userEmail = event.requestContext.authorizer?.jwt.claims.email;
-    const { profileId } = event.pathParameters || {};
 
-    if (!profileId || !userId || !userEmail) {
-      return {
-        statusCode: 400,
-        headers: CORS_HEADERS,
-        body: JSON.stringify({ message: 'Missing parameters' }),
-      };
-    }
+  const { Item: profile } = await docClient.send(
+    new GetCommand({
+      TableName: process.env.PROFILES_TABLE_NAME!,
+      Key: { profileId },
+    }),
+  );
 
-    const hasAccess = await checkPermissions(userId, userEmail, profileId, 'Viewer');
-    if (!hasAccess) {
-      return {
-        statusCode: 403,
-        headers: CORS_HEADERS,
-        body: JSON.stringify({ message: 'Forbidden' }),
-      };
-    }
-
-    const { Item } = await docClient.send(
-      new GetCommand({
-        TableName: process.env.PROFILES_TABLE_NAME!,
-        Key: { profileId },
-      }),
-    );
-    if (!Item) {
-      return {
-        statusCode: 404,
-        headers: CORS_HEADERS,
-        body: JSON.stringify({ message: 'Profile not found' }),
-      };
-    }
-    return {
-      statusCode: 200,
-      headers: CORS_HEADERS,
-      body: JSON.stringify(Item),
-    };
-  } catch (error: any) {
-    console.error(error);
-    return {
-      statusCode: 500,
-      headers: CORS_HEADERS,
-      body: JSON.stringify({
-        message: 'Internal Server Error',
-        error: error.message,
-      }),
-    };
+  if (!profile) {
+    return { statusCode: 404, body: JSON.stringify({ message: 'Profile not found.' }) };
   }
+
+  /*
+  // REMOVED: Per your request, we are no longer logging simple view actions.
+  await logAuditEvent({
+    userId: event.userContext.userId,
+    action: 'VIEW_PROFILE',
+    resourceId: profileId,
+    details: { actorEmail: event.userContext.email, profileOwnerId: profile.userId }
+  });
+  */
+
+  return { statusCode: 200, headers: CORS_HEADERS, body: JSON.stringify(profile) };
 };
+
+export const handler = createHandler({
+  schema: z.object({}),
+  handler: getProfileLogic,
+  access: (event) => ({
+    requireDevice: true,
+    profile: { id: event.pathParameters?.profileId, requiredRole: 'Viewer' },
+  }),
+});
