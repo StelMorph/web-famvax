@@ -7,14 +7,14 @@ import refresh from 'eslint-plugin-react-refresh';
 
 export default [
   // ⬇️ this replaces .eslintignore
-  { ignores: ['dist/**', 'build/**', 'node_modules/**', 'prettier.js', 'commitlint.config.cjs', 'vite.config.js', '*.config.js'] },
+  { ignores: ['dist/**', 'build/**', 'node_modules/**', 'cdk.out/**', '*.config.js'] },
   {
     files: ['**/*.{js,jsx,ts,tsx}'],
     languageOptions: {
       parser: tsParser,
       ecmaVersion: 'latest',
       sourceType: 'module',
-      globals: { window: 'readonly', document: 'readonly' }
+      globals: { ...globals.node }
     },
     settings: { react: { version: 'detect' } },
     plugins: { react, 'react-hooks': hooks, '@typescript-eslint': ts, 'react-refresh': refresh },
