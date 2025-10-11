@@ -1,6 +1,5 @@
 {
-  "*.{js,jsx,ts,tsx}": [
-    "eslint --fix --config ./.eslintrc.cjs",
-    "prettier --write"
-  ]
+  "frontend/**/*.{js,jsx,ts,tsx}": "npm --workspace frontend run lint -- --fix",
+  "frontend/**/*.{js,jsx,ts,tsx,json,css,scss,md}": "npm --workspace frontend run format",
+  "backend/**/*.{ts}": "npm --workspace backend run lint -- --fix"
 }
