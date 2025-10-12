@@ -25,31 +25,26 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      # Lint only changed frontend files vs main, if any
+      # Lint only files changed under frontend/ (if any)
       - name: Lint changed frontend files
+        working-directory: frontend
         run: |
           git fetch --depth=1 origin main
-          FILES=$(git diff --name-only origin/main...HEAD \
-            | grep '^frontend/' \
-            | grep -E '\.(ts|tsx|js|jsx)$' || true)
+          FILES=$(git diff --name-only origin/main...HEAD | grep -E '^src/.*\.(js|jsx|ts|tsx)$' || true)
           if [ -n "$FILES" ]; then
             echo "Linting changed files:"
             echo "$FILES"
-            npx eslint \
-              -c frontend/eslint.config.mjs \
-              --resolve-plugins-relative-to frontend \
-              --fix $FILES
+            npx eslint -c eslint.config.mjs --fix $FILES
           else
             echo "No changed frontend files to lint."
           fi
 
-      # Full lint of the frontend (useful when the PR touches config or deps)
+      # Full lint (useful when configs/deps change)
       - name: Lint frontend
+        working-directory: frontend
         run: |
-          npx eslint \
-            -c frontend/eslint.config.mjs \
-            --resolve-plugins-relative-to frontend \
-            "frontend/src/**/*.{js,jsx,ts,tsx}"
+          npx eslint -c eslint.config.mjs "src/**/*.{js,jsx,ts,tsx}"
+          # (no --resolve-plugins-relative-to; not needed and invalid on ESLint 9)
 
       - name: Test
         run: npm run test --workspace frontend --if-present -- --ci --passWithNoTests
