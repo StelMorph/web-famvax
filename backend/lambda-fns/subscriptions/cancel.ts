@@ -57,7 +57,7 @@ const cancelLogic: AuthenticatedHandler = async (event) => {
     }),
   );
 
-  await logAuditEvent({ userId, action: 'CANCEL_SUBSCRIPTION', resourceId: userId });
+  await logAuditEvent({ userId, action: 'CANCEL_SUBSCRIPTION', resource: userId });
 
   return { statusCode: 200, headers: CORS_HEADERS, body: JSON.stringify(Attributes) };
 };

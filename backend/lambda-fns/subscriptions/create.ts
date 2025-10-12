@@ -102,7 +102,7 @@ const handlerLogic: AuthenticatedHandler = async (event) => {
   await logAuditEvent({
     userId,
     action: 'CREATE_SUBSCRIPTION',
-    resourceId: userId,
+    resource: userId,
     details: { plan: sub.plan },
   });
 

@@ -43,7 +43,7 @@ const createVaccineLogic: AuthenticatedHandler = async (event) => {
   await logAuditEvent({
     userId: userId,
     action: 'CREATE_VACCINE',
-    resource: profileId, // CRITICAL: The resourceId is the profile's ID
+    resource: profileId, // CRITICAL: The resource is the profile's ID
     details: {
       actorEmail: email,
       vaccineId: vaccineId, // The ID of the thing that was created

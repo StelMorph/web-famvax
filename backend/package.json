@@ -10,7 +10,7 @@
     "test": "vitest run",
     "cdk": "cdk",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "lint": "eslint . --ext .ts"
+    "lint": "eslint --ext .ts"
   },
   "devDependencies": {
     "@types/aws-lambda": "^8.10.137",

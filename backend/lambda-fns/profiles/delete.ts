@@ -76,7 +76,7 @@ const deleteProfileLogic: AuthenticatedHandler = async (event) => {
     new DeleteCommand({ TableName: process.env.PROFILES_TABLE_NAME!, Key: { profileId } }),
   );
 
-  await logAuditEvent({ userId, action: 'DELETE_PROFILE', resourceId: profileId });
+  await logAuditEvent({ userId, action: 'DELETE_PROFILE', resource: profileId });
 
   return { statusCode: 204, headers: CORS_HEADERS, body: '' };
 };

@@ -80,7 +80,7 @@ const updateProfileLogic: AuthenticatedHandler = async (event) => {
     }),
   );
 
-  await logAuditEvent({ userId, action: 'UPDATE_PROFILE', resourceId: profileId });
+  await logAuditEvent({ userId, action: 'UPDATE_PROFILE', resource: profileId });
   return { statusCode: 200, headers: CORS_HEADERS, body: JSON.stringify(Attributes) };
 };
 

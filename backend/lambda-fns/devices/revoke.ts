@@ -48,7 +48,7 @@ const revokeDeviceLogic: AuthenticatedHandler = async (event) => {
   await docClient.send(
     new DeleteCommand({ TableName: process.env.DEVICES_TABLE_NAME!, Key: { deviceId } }),
   );
-  await logAuditEvent({ userId, action: 'REVOKE_DEVICE', resourceId: deviceId });
+  await logAuditEvent({ userId, action: 'REVOKE_DEVICE', resource: deviceId });
 
   return { statusCode: 204, headers: CORS_HEADERS, body: '' };
 };

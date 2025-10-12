@@ -60,7 +60,7 @@ const createProfileLogic: AuthenticatedHandler = async (event) => {
   await logAuditEvent({
     userId,
     action: 'CREATE_PROFILE',
-    resourceId: profileId,
+    resource: profileId,
     details: { name: item.name },
   });
 

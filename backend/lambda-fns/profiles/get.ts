@@ -28,7 +28,7 @@ const getProfileLogic: AuthenticatedHandler = async (event) => {
   await logAuditEvent({
     userId: event.userContext.userId,
     action: 'VIEW_PROFILE',
-    resourceId: profileId,
+    resource: profileId,
     details: { actorEmail: event.userContext.email, profileOwnerId: profile.userId }
   });
   */

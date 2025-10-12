@@ -60,7 +60,7 @@ const updateStatusLogic: AuthenticatedHandler = async (event) => {
   );
 
   const action = cancelAtPeriodEnd ? 'CANCEL_SUBSCRIPTION' : 'RESUME_SUBSCRIPTION';
-  await logAuditEvent({ userId, action, resourceId: userId });
+  await logAuditEvent({ userId, action, resource: userId });
 
   return { statusCode: 200, headers: CORS_HEADERS, body: JSON.stringify(Attributes) };
 };
