@@ -20,25 +20,36 @@ jobs:
         with:
           node-version: 20
           cache: npm
+          cache-dependency-path: package-lock.json
 
       - name: Install dependencies
-        run: npm install
+        run: npm ci
 
-      - name: Lint only changed or owned files
-        working-directory: frontend
+      # Lint only changed frontend files vs main, if any
+      - name: Lint changed frontend files
         run: |
-          git fetch origin main
-          FILES=$(git diff --name-only origin/main...HEAD -- '*.ts' '*.tsx' '*.js' '*.jsx' | tr '\n' ' ')
+          git fetch --depth=1 origin main
+          FILES=$(git diff --name-only origin/main...HEAD \
+            | grep '^frontend/' \
+            | grep -E '\.(ts|tsx|js|jsx)$' || true)
           if [ -n "$FILES" ]; then
-            echo "Linting changed files: $FILES"
-            npx eslint $FILES --fix
+            echo "Linting changed files:"
+            echo "$FILES"
+            npx eslint \
+              -c frontend/eslint.config.mjs \
+              --resolve-plugins-relative-to frontend \
+              --fix $FILES
           else
-            echo "No files to lint."
+            echo "No changed frontend files to lint."
           fi
 
-
+      # Full lint of the frontend (useful when the PR touches config or deps)
       - name: Lint frontend
-        run: npx eslint frontend/src --ext .js,.jsx
+        run: |
+          npx eslint \
+            -c frontend/eslint.config.mjs \
+            --resolve-plugins-relative-to frontend \
+            "frontend/src/**/*.{js,jsx,ts,tsx}"
 
       - name: Test
         run: npm run test --workspace frontend --if-present -- --ci --passWithNoTests
