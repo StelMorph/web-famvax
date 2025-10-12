@@ -4,7 +4,7 @@ import {
   APIGatewayProxyResultV2,
   APIGatewayProxyStructuredResultV2,
 } from 'aws-lambda';
-import { z, ZodSchema } from 'zod';
+import { type ZodSchema } from 'zod';
 import { AccessGate, AccessOptions, GuardError } from './access';
 import { CORS_HEADERS } from './clients';
 
@@ -34,17 +34,22 @@ export type WrappedEvent = APIGatewayProxyEventV2 & {
   parsedBody?: unknown;
 };
 
-export type AuthenticatedHandler = (event: WrappedEvent) => Promise<APIGatewayProxyResultV2>;
+export type AuthenticatedHandler = (
+  event: WrappedEvent,
+) => Promise<APIGatewayProxyResultV2>;
 
 type CreateHandlerArgsStatic = {
   schema?: ZodSchema<any>;
   handler: AuthenticatedHandler;
-  access?: AccessOptions; // now supports { public: true }
+  /** Supports `{ public: true }` to skip auth/device checks. */
+  access?: AccessOptions;
 };
+
 type CreateHandlerArgsFn = {
   schema?: ZodSchema<any>;
   handler: AuthenticatedHandler;
-  access?: (event: APIGatewayProxyEventV2) => AccessOptions; // may return { public: true }
+  /** May return `{ public: true }` dynamically. */
+  access?: (event: APIGatewayProxyEventV2) => AccessOptions;
 };
 
 const buildCors = (event: APIGatewayProxyEventV2) => {
@@ -64,30 +69,24 @@ const buildCors = (event: APIGatewayProxyEventV2) => {
   };
 };
 
+// Single union-typed signature (replaces TS overload declarations; avoids no-redeclare)
 export function createHandler(
-  args: CreateHandlerArgsStatic,
-): (event: APIGatewayProxyEventV2) => Promise<APIGatewayProxyResultV2>;
-export function createHandler(
-  args: CreateHandlerArgsFn,
-): (event: APIGatewayProxyEventV2) => Promise<APIGatewayProxyResultV2>;
+  args: CreateHandlerArgsStatic | CreateHandlerArgsFn,
+) {
+  const { schema, handler, access } = args;
 
-export function createHandler({
-  schema,
-  handler,
-  access,
-}: CreateHandlerArgsStatic | CreateHandlerArgsFn) {
   return async (event: APIGatewayProxyEventV2): Promise<APIGatewayProxyResultV2> => {
     const cors = buildCors(event);
 
-    // Preflight
+    // CORS preflight
     if (event.requestContext?.http?.method === 'OPTIONS') {
       const out: APIGatewayProxyStructuredResultV2 = { statusCode: 204, headers: cors };
       return out;
     }
 
     try {
-      // Parse + validate body (optional)
-      let parsedBody: unknown = undefined;
+      // Optional: parse & validate JSON body
+      let parsedBody: unknown;
       if (schema) {
         try {
           const raw = event.body
@@ -100,7 +99,10 @@ export function createHandler({
           return {
             statusCode: 400,
             headers: cors,
-            body: JSON.stringify({ message: 'Invalid request body', issues: e?.issues ?? [] }),
+            body: JSON.stringify({
+              message: 'Invalid request body',
+              issues: e?.issues ?? [],
+            }),
           };
         }
       }
@@ -109,7 +111,7 @@ export function createHandler({
       const baseAccess: AccessOptions | undefined =
         typeof access === 'function' ? access(event) : access;
 
-      // Normalize path and apply device allowlist for private APIs.
+      // Normalize path and apply device allowlist for private APIs
       const rawPath = (event.requestContext as any)?.http?.path || (event as any)?.rawPath;
       const path = normalizePath(rawPath);
 
@@ -161,27 +163,28 @@ export function createHandler({
 
       if (typeof res === 'string') {
         return { statusCode: 200, body: res, headers: cors };
-      } else {
-        return {
-          statusCode: res.statusCode ?? 200,
-          body: res.body,
-          headers: { ...(res.headers || {}), ...cors },
-          cookies: (res as any).cookies,
-          isBase64Encoded: (res as any).isBase64Encoded,
-        };
       }
+      return {
+        statusCode: res.statusCode ?? 200,
+        body: res.body,
+        headers: { ...(res.headers || {}), ...cors },
+        cookies: (res as any).cookies,
+        isBase64Encoded: (res as any).isBase64Encoded,
+      };
     } catch (err: any) {
       if (err instanceof GuardError) {
         return {
           statusCode: err.status,
-          headers: buildCors(event),
+          headers: cors,
           body: JSON.stringify({ code: err.code, message: err.message, details: err.payload }),
         };
       }
+      // keep logging for observability (no global disable needed)
       console.error('Unhandled error:', err);
+
       return {
         statusCode: 500,
-        headers: buildCors(event),
+        headers: cors,
         body: JSON.stringify({ message: 'Internal Server Error' }),
       };
     }

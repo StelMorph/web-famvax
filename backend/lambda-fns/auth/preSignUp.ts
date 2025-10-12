@@ -3,7 +3,7 @@ import { PreSignUpTriggerEvent, PreSignUpTriggerHandler } from 'aws-lambda';
 
 // This Regular Expression matches a string that contains ONLY standard ASCII characters.
 // \x00-\x7F is the valid range for ASCII characters (English letters, numbers, common symbols).
-const asciiRegex = /^[\x00-\x7F]*$/;
+const asciiRegex = new RegExp('^[\\x20-\\x7E]+$');
 
 export const handler: PreSignUpTriggerHandler = async (
   event: PreSignUpTriggerEvent,

@@ -1,5 +1,5 @@
 {
   "frontend/**/*.{js,jsx,ts,tsx}": "npm --workspace frontend run lint -- --fix",
   "frontend/**/*.{js,jsx,ts,tsx,json,css,scss,md}": "npm --workspace frontend run format",
-  "backend/**/*.{ts}": "npm --workspace backend run lint -- --fix"
+  "backend/**/*.{ts,js}": "npm --workspace backend run lint -- --fix"
 }
