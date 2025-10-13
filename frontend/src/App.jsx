@@ -9,7 +9,7 @@ import { jwtDecode } from 'jwt-decode';
 // Pages
 import AuthScreen from './pages/Auth/AuthScreen.jsx';
 import SignupScreen from './pages/Auth/SignupScreen.jsx';
-import AddProfileScreen from './pages/MyFamily/AddProfileScreen.jsx';
+// import AddProfileScreen from './pages/MyFamily/AddProfileScreen.jsx'; // <-- CHANGE [1]: REMOVED OLD SCREEN IMPORT
 import MyFamilyScreen from './pages/MyFamily/MyFamilyScreen.jsx';
 import ProfileDetailScreen from './pages/MyFamily/ProfileDetailScreen.jsx';
 import SettingsScreen from './pages/Settings/SettingsScreen.jsx';
@@ -42,7 +42,7 @@ const validScreens = new Set([
   'auth-screen',
   'signup-screen',
   'my-family-screen',
-  'add-profile-screen',
+  // 'add-profile-screen', // <-- CHANGE [2]: REMOVED OLD SCREEN FROM VALID SCREENS
   'profile-detail-screen',
   'settings-screen',
   'account-details-screen',
@@ -475,21 +475,22 @@ function App() {
             receivedShares={receivedShares}
             pendingInviteCount={pendingInviteCount}
             isLoading={appState.areDetailsLoading}
-            onAddProfile={() => navigateTo('add-profile-screen')}
+            // onAddProfile={() => navigateTo('add-profile-screen')} // <-- CHANGE [3]: OLD NAVIGATION
+            onAddProfile={() => showModal('add-profile')} // <-- CHANGE [3]: USE showModal INSTEAD
             onOpenProfile={(id) => navigateTo('profile-detail-screen', { currentProfileId: id })}
             onRefresh={() => fetchAllForMyFamily()}
           />
         );
-      case 'add-profile-screen':
-        return (
-          <AddProfileScreen
-            onDone={() => {
-              navigateTo('my-family-screen');
-              fetchAllForMyFamily();
-            }}
-            onCancel={goBack}
-          />
-        );
+      // case 'add-profile-screen': // <-- CHANGE [4]: REMOVED ENTIRE CASE BLOCK FOR OLD SCREEN
+      //   return (
+      //     <AddProfileScreen
+      //       onDone={() => {
+      //         navigateTo('my-family-screen');
+      //         fetchAllForMyFamily();
+      //       }}
+      //       onCancel={goBack}
+      //     />
+      //   );
       case 'profile-detail-screen':
         return (
           <ProfileDetailScreen

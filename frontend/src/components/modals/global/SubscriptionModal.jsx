@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faTimes, faSpinner } from '@fortawesome/free-solid-svg-icons';
-import api from '../../api/apiService.js';
+import api from '../../../api/apiService.js';
 
 function SubscriptionModal({ onClose, onSuccess }) {
   const [selectedPlan, setSelectedPlan] = useState('monthly'); // 'monthly' or 'yearly'

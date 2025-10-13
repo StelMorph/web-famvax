@@ -85,7 +85,8 @@ function MyFamilyScreen() {
   };
 
   const handleAddProfile = () => {
-    showModal('add-method', { addType: 'member' });
+    // UPDATE: Directly open the 'add-profile' modal
+    showModal('add-profile');
   };
 
   return (

@@ -1,6 +1,6 @@
 // src/pages/MyFamily/ManageSharingModal.jsx
 import React, { useState, useEffect, useContext } from 'react';
-import { AppContext } from '../../contexts/AppContext.js';
+import { AppContext } from '../../../contexts/AppContext.js';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
   faTimes,
@@ -9,7 +9,7 @@ import {
   faCircleInfo,
   faShareNodes,
 } from '@fortawesome/free-solid-svg-icons';
-import api from '../../api/apiService.js';
+import api from '../../../api/apiService.js';
 
 const ROLES = {
   Viewer: {

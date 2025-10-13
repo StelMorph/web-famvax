@@ -9,8 +9,8 @@ import {
   faLink,
   faExternalLinkAlt,
 } from '@fortawesome/free-solid-svg-icons';
-import { AppContext } from '../../contexts/AppContext.js';
-import api from '../../api/apiService.js';
+import { AppContext } from '../../../contexts/AppContext.js';
+import api from '../../../api/apiService.js';
 
 const DEFAULT_DAYS = 7;
 const LS_KEY = (vaccineId) => `famvax_vshare_${vaccineId}`;

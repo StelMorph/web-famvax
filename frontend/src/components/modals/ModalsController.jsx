@@ -1,17 +1,18 @@
 // src/components/modals/ModalsController.jsx
 import React, { useContext, useMemo, useState, useEffect } from 'react';
 import { AppContext } from '../../contexts/AppContext.js';
-import EditProfileModal from './EditProfileModal.jsx';
-import ManageSharingModal from './ManageSharingModal.jsx';
-import FeedbackModal from './FeedbackModal.jsx';
-import AddMethodModal from './AddMethodModal.jsx';
-import AiScanMethodModal from './AiScanMethodModal.jsx';
+import EditProfileModal from './profiles/EditProfileModal.jsx';
+import ManageSharingModal from './profiles/ManageSharingModal.jsx';
+import FeedbackModal from './global/FeedbackModal.jsx';
+import AddMethodModal from './global/AddMethodModal.jsx';
+import AiScanMethodModal from './global/AiScanMethodModal.jsx';
 import AIScanCameraScreen from '../../scan/AIScanCameraScreen.jsx';
-import ConfirmEmailModal from './ConfirmEmailModal.jsx';
-import ForgotPasswordModal from './ForgotPasswordModal.jsx';
-import AddEditVaccineModal from './AddEditVaccineModal.jsx';
-import ModalUndoBar from './ModalUndoBar.jsx';
-import VaccineShareModal from './VaccineShareModal.jsx'; // <-- NEW
+import ConfirmEmailModal from './auth/ConfirmEmailModal.jsx';
+import ForgotPasswordModal from './auth/ForgotPasswordModal.jsx';
+import AddEditVaccineModal from './vaccines/AddEditVaccineModal.jsx';
+import ModalUndoBar from './global/ModalUndoBar.jsx';
+import VaccineShareModal from './vaccines/VaccineShareModal.jsx';
+import AddProfileModal from './profiles/AddProfileModal.jsx'; // <-- 1. IMPORT NEW MODAL
 import api from '../../api/apiService.js';
 
 function ModalsController() {
@@ -61,6 +62,12 @@ function ModalsController() {
       prev.map((p) => (p.profileId === updatedProfile.profileId ? { ...p, ...updatedProfile } : p)),
     );
     showNotification({ type: 'success', message: 'Profile updated!' });
+    closeModal();
+  };
+
+  // The new AddProfileModal updates state internally via context,
+  // so we just need a handler to close the modal upon completion.
+  const handleProfileCreated = () => {
     closeModal();
   };
 
@@ -149,15 +156,15 @@ function ModalsController() {
   useEffect(() => {
     if (!undoState) return;
     if (secondsLeft <= 0) clearUndo();
-  }, [secondsLeft, undoState]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [secondsLeft, undoState]);  
 
   /* ---------------- Add flow helpers ---------------- */
   const handleAiScan = () => showModal('ai-scan-method');
 
   const handleManualEntry = () => {
     if (addType === 'member') {
-      navigateTo('add-profile-screen');
-      closeModal();
+      // 2. UPDATE "ADD MEMBER" FLOW TO USE THE MODAL
+      showModal('add-profile');
     } else {
       showModal('add-edit-vaccine', { mode: 'add', currentProfileId });
     }
@@ -194,6 +201,9 @@ function ModalsController() {
 
   const renderModalContent = () => {
     switch (activeModal) {
+      // 3. ADD CASE TO RENDER THE NEW MODAL
+      case 'add-profile':
+        return <AddProfileModal onClose={closeModal} onProfileCreated={handleProfileCreated} />;
       case 'edit-profile':
         return (
           <EditProfileModal
@@ -262,7 +272,13 @@ function ModalsController() {
 
   const handleTakePhoto = () => showModal('camera-scan');
 
-  const modalsToKeepOpen = ['confirm-email', 'forgot-password', 'camera-scan', 'add-edit-vaccine'];
+  const modalsToKeepOpen = [
+    'confirm-email',
+    'forgot-password',
+    'camera-scan',
+    'add-edit-vaccine',
+    'add-profile',
+  ];
   const handleOverlayClick = modalsToKeepOpen.includes(activeModal) ? undefined : closeModal;
 
   return (

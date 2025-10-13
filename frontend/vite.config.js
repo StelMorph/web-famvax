@@ -3,11 +3,12 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
-// https://vitejs.dev/config/
 export default defineConfig({
   plugins: [react()],
-  // By removing the 'define' block, we fix the build error.
-  // Vite automatically handles environment variables prefixed with "VITE_"
-  // from your .env file and exposes them on `import.meta.env`.
-  // No extra configuration is needed for them.
+  define: {
+    // This adds a polyfill for the 'global' object that the AWS SDK
+    // and other libraries expect to exist. We are aliasing it to
+    // 'globalThis', which is the modern standard and works in browsers.
+    global: 'globalThis',
+  },
 });

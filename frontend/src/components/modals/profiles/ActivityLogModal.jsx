@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useContext } from 'react';
-import { AppContext } from '../../contexts/AppContext';
+import { AppContext } from '../../../contexts/AppContext.js';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 // --- DEFINITIVE FIX: Import faTrashCan for a better delete icon ---
 import {
@@ -11,7 +11,7 @@ import {
   faSyringe,
   faTrashCan,
 } from '@fortawesome/free-solid-svg-icons';
-import api from '../../api/apiService.js';
+import api from '../../../api/apiService.js';
 
 function LogEntry({ log, currentUserId }) {
   const ICONS = {
