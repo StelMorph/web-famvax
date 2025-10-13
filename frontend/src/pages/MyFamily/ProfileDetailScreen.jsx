@@ -1,6 +1,6 @@
 // src/pages/MyFamily/ProfileDetailScreen.jsx
 import React, { useContext, useEffect, useMemo, useRef, useState } from 'react';
-import { AppContext } from '../../contexts/AppState';
+import { AppContext } from '../../contexts/AppContext';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
   faArrowLeft,
