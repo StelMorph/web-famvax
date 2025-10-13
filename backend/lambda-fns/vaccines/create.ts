@@ -1,59 +1,70 @@
-import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
+// backend/lambda-fns/vaccines/create.ts
 import { PutCommand } from '@aws-sdk/lib-dynamodb';
 import { docClient, CORS_HEADERS } from '../common/clients';
-import { checkPermissions } from '../common/auth';
+import { createHandler, AuthenticatedHandler } from '../common/middleware';
+import { logAuditEvent } from '../audit/audit';
+import { z } from 'zod';
 import { randomUUID } from 'crypto';
 
-export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
-  if (event.httpMethod === 'OPTIONS') {
-    return { statusCode: 204, headers: CORS_HEADERS, body: '' };
+// Define a schema for the incoming vaccine data
+const createVaccineSchema = z.object({
+  vaccineName: z.string().min(1),
+  date: z.string().optional(),
+  // Add other vaccine properties here
+});
+
+const createVaccineLogic: AuthenticatedHandler = async (event) => {
+  const { profileId } = event.pathParameters || {};
+  // The parsedBody comes from the middleware after validation
+  const vaccineData = event.parsedBody as z.infer<typeof createVaccineSchema>;
+  const { userId, email } = event.userContext;
+
+  if (!profileId) {
+    return { statusCode: 400, body: JSON.stringify({ message: 'Profile ID is required.' }) };
   }
-  try {
-    const userId = event.requestContext.authorizer?.jwt.claims.sub;
-    const userEmail = event.requestContext.authorizer?.jwt.claims.email;
-    const { profileId } = event.pathParameters || {};
-    const data = JSON.parse(event.body || '{}');
 
-    if (!profileId || !userId || !userEmail) {
-      return {
-        statusCode: 400,
-        headers: CORS_HEADERS,
-        body: JSON.stringify({ message: 'Missing required parameters.' }),
-      };
-    }
+  const vaccineId = randomUUID();
+  const newVaccine = {
+    vaccineId,
+    profileId,
+    ...vaccineData,
+    createdAt: new Date().toISOString(),
+  };
 
-    const canEdit = await checkPermissions(userId, userEmail, profileId, 'Editor');
-    if (!canEdit) {
-      return {
-        statusCode: 403,
-        headers: CORS_HEADERS,
-        body: JSON.stringify({
-          message: 'Forbidden: You do not have permission to add records to this profile.',
-        }),
-      };
-    }
+  await docClient.send(
+    new PutCommand({
+      TableName: process.env.VACCINES_TABLE_NAME!,
+      Item: newVaccine,
+    }),
+  );
 
-    const vaccineId = randomUUID();
-    await docClient.send(
-      new PutCommand({
-        TableName: process.env.VACCINES_TABLE_NAME!,
-        Item: { profileId, vaccineId, ...data },
-      }),
-    );
-    return {
-      statusCode: 201,
-      headers: CORS_HEADERS,
-      body: JSON.stringify({ vaccineId, ...data }),
-    };
-  } catch (error: any) {
-    console.error('Error creating vaccine:', error);
-    return {
-      statusCode: 500,
-      headers: CORS_HEADERS,
-      body: JSON.stringify({
-        message: 'Internal Server Error',
-        error: error.message,
-      }),
-    };
-  }
+  // --- THIS IS THE FIX ---
+  // Log the creation event with rich, useful details.
+  await logAuditEvent({
+    userId: userId,
+    action: 'CREATE_VACCINE',
+    resource: profileId, // CRITICAL: The resource is the profile's ID
+    details: {
+      actorEmail: email,
+      vaccineId: vaccineId, // The ID of the thing that was created
+      vaccineName: vaccineData.vaccineName, // The name of the vaccine
+    },
+  });
+  // --- END OF FIX ---
+
+  return {
+    statusCode: 201,
+    headers: CORS_HEADERS,
+    body: JSON.stringify(newVaccine),
+  };
 };
+
+export const handler = createHandler({
+  schema: createVaccineSchema,
+  handler: createVaccineLogic,
+  access: (event) => ({
+    requireDevice: true,
+    // User must be an 'Editor' to create a vaccine for a profile
+    profile: { id: event.pathParameters?.profileId, requiredRole: 'Editor' },
+  }),
+});

@@ -1,0 +1,179 @@
+/* frontend/src/styles/pages/ManageDevices.css */
+
+/* Top nav (back + title) */
+.simple-nav {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.simple-nav h2 {
+  font-size: 20px;
+  font-weight: 600;
+  margin: 0;
+}
+
+.btn-icon.back-button {
+  display: inline-grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  border: 1px solid #e6e8eb;
+  background: #fff;
+  cursor: pointer;
+}
+
+/* Device list grid */
+.device-list {
+  display: grid;
+  gap: 12px;
+}
+
+/* Loading spinner wrapper */
+.devices-loading {
+  display: grid;
+  place-items: center;
+  padding: 32px;
+  background: #fff;
+  border: 1px solid #e6e8eb;
+  border-radius: 12px;
+}
+
+/* Device card */
+.device-card {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 14px;
+  align-items: center;
+  background: #fff;
+  border: 1px solid #e6e8eb;
+  border-radius: 12px;
+  padding: 14px 16px;
+  box-shadow: 0 1px 1px rgba(0, 0, 0, 0.02);
+}
+
+/* Device type icon (left) */
+.device-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: #e9f6f0;
+  display: grid;
+  place-items: center;
+  font-size: 18px;
+  color: #0f766e; /* teal-ish */
+}
+
+/* Middle column */
+.device-info {
+  min-width: 0;
+}
+
+/* Name row */
+.device-name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.device-name strong {
+  font-weight: 600;
+}
+
+/* “Current Device” tag */
+.current-device-tag {
+  font-size: 11px;
+  padding: 2px 6px;
+  background: #e8f5ff;
+  color: #1976d2;
+  border-radius: 999px;
+}
+
+/* Meta chips row */
+.device-meta {
+  margin-top: 4px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  color: #475569;
+  font-size: 13px;
+}
+
+.meta-chip {
+  opacity: 0.9;
+}
+
+.meta-sep {
+  opacity: 0.5;
+}
+
+/* Last seen */
+.last-seen {
+  margin-top: 6px;
+  font-size: 12px;
+  color: #6b7280;
+}
+
+/* Right column: actions */
+.device-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Generic button */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 10px;
+  padding: 8px 12px;
+  font-weight: 600;
+  cursor: pointer;
+  line-height: 1;
+}
+
+/* Destructive */
+.btn-danger {
+  background: #ef4444;
+  color: #fff;
+}
+
+.btn-danger:hover {
+  background: #dc2626;
+}
+
+/* Ensure spacing between icon and label */
+.btn-with-icon {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px; /* <— space between icon and “Revoke” */
+}
+
+.btn-with-icon .icon-left {
+  margin-right: 0; /* gap handles spacing; keep icon margin neutral */
+}
+
+/* Responsive tweaks */
+@media (max-width: 640px) {
+  .device-card {
+    grid-template-columns: auto 1fr;
+    grid-template-areas:
+      'icon info'
+      'actions actions';
+  }
+
+  .device-icon {
+    grid-area: icon;
+  }
+  .device-info {
+    grid-area: info;
+  }
+  .device-actions {
+    grid-area: actions;
+    justify-content: flex-end;
+  }
+}

@@ -1,0 +1,237 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1, user-scalable=no"
+  />
+  <title>FamVax — Vaccination Record</title>
+  <style>
+    :root {
+      --bg: #0f172a;         /* slate-900 */
+      --panel: #111827;      /* gray-900 */
+      --panel2: #0b1220;     /* deep */
+      --border: #1f2937;     /* gray-800 */
+      --text: #e5e7eb;       /* gray-200 */
+      --muted: #9ca3af;      /* gray-400 */
+      --accent: #3b82f6;     /* blue-500 */
+      --accent-600: #2563eb;
+      --badge: #1e40af;      /* blue-900 */
+      --shadow: rgba(0,0,0,.4);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto,
+                   Noto Sans, Ubuntu, Cantarell, Helvetica Neue, Arial, "Apple Color Emoji",
+                   "Segoe UI Emoji";
+      background: radial-gradient(1200px 600px at 20% -10%, #0b1220, transparent),
+                  var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: grid;
+      place-items: start center;
+      padding: 56px 20px;
+    }
+    .card {
+      width: min(980px, 100%);
+      background: linear-gradient(180deg, var(--panel2), var(--panel));
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      box-shadow: 0 20px 60px var(--shadow);
+      padding: 24px 28px;
+    }
+    .head {
+      display: flex;
+      gap: 16px;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+    }
+    h1 {
+      margin: 0;
+      font-size: clamp(20px, 3vw, 28px);
+      letter-spacing: .2px;
+    }
+    .actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .badge {
+      padding: 6px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      color: #cfe1ff;
+      background: linear-gradient(180deg, #13337a, var(--badge));
+      border: 1px solid #1f3fa3;
+      letter-spacing: .2px;
+      white-space: nowrap;
+    }
+    .btn {
+      background: var(--accent);
+      color: white;
+      border: 0;
+      border-radius: 10px;
+      padding: 10px 14px;
+      font: inherit;
+      cursor: pointer;
+      transition: transform .05s ease, background .2s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .btn:hover { background: var(--accent-600); }
+    .btn:active { transform: translateY(1px); }
+    .rows {
+      margin-top: 12px;
+      border-top: 1px solid var(--border);
+    }
+    .row {
+      display: grid;
+      grid-template-columns: 160px 1fr;
+      gap: 16px;
+      align-items: center;
+      padding: 16px 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .label {
+      color: var(--muted);
+      font-size: 14px;
+    }
+    .value { font-size: 15px; min-height: 20px; }
+    .dash { color: var(--muted); }
+    @media (max-width: 560px) {
+      .row { grid-template-columns: 1fr; gap: 6px; }
+    }
+  </style>
+</head>
+<body>
+  <main class="card">
+    <header class="head">
+      <h1>FamVax — Vaccination Record</h1>
+      <div class="actions">
+        <span id="expires" class="badge" hidden>Expires in —</span>
+        <button id="downloadBtn" class="btn" type="button">Download PDF</button>
+      </div>
+    </header>
+
+    <section class="rows">
+      <div class="row">
+        <div class="label">Profile</div>
+        <div class="value" id="v_profile"><span class="dash">—</span></div>
+      </div>
+      <div class="row">
+        <div class="label">Vaccine</div>
+        <div class="value" id="v_vaccine"><span class="dash">—</span></div>
+      </div>
+      <div class="row">
+        <div class="label">Date</div>
+        <div class="value" id="v_date"><span class="dash">—</span></div>
+      </div>
+      <div class="row">
+        <div class="label">Dose</div>
+        <div class="value" id="v_dose"><span class="dash">—</span></div>
+      </div>
+      <div class="row">
+        <div class="label">Clinic</div>
+        <div class="value" id="v_clinic"><span class="dash">—</span></div>
+      </div>
+      <div class="row">
+        <div class="label">Lot</div>
+        <div class="value" id="v_lot"><span class="dash">—</span></div>
+      </div>
+      <div class="row">
+        <div class="label">Notes</div>
+        <div class="value" id="v_notes"><span class="dash">—</span></div>
+      </div>
+      <div class="row">
+        <div class="label">Side Effects</div>
+        <div class="value" id="v_sideEffects"><span class="dash">—</span></div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    // tiny helpers
+    const qs = (k) =>
+      new URLSearchParams(window.location.search).get(k) || "";
+    const fmt = (v) => (v && String(v).trim() ? String(v) : "—");
+    const fmtDate = (iso) => {
+      if (!iso) return "—";
+      try {
+        const d = new Date(iso);
+        // Accept plain YYYY-MM-DD by treating it as UTC
+        if (iso.length === 10) {
+          const [y, m, d2] = iso.split("-").map(Number);
+          return new Date(Date.UTC(y, m - 1, d2)).toLocaleDateString(
+            undefined,
+            { year: "numeric", month: "short", day: "2-digit" }
+          );
+        }
+        return d.toLocaleDateString(undefined, {
+          year: "numeric",
+          month: "short",
+          day: "2-digit",
+        });
+      } catch (_) {
+        return "—";
+      }
+    };
+
+    (async function init() {
+      const token = qs("token");
+      const api = decodeURIComponent(qs("api") || "").replace(/\/+$/, "");
+      if (!token || !api) {
+        console.error("Missing token or api in URL");
+        return;
+      }
+
+      // Wire the PDF button up front
+      const pdfUrl = `${api}/public/vaccine/${encodeURIComponent(token)}/pdf`;
+      document.getElementById("downloadBtn").onclick = () =>
+        (window.location.href = pdfUrl);
+
+      try {
+        const resp = await fetch(
+          `${api}/public/vaccine/${encodeURIComponent(token)}`
+        );
+        if (!resp.ok) throw new Error("failed to fetch");
+        const data = await resp.json();
+
+        // === Map JSON -> UI (note the field names) ===
+        const profileName = data?.profile?.name;
+        const v = data?.vaccine || {};
+
+        // Important differences:
+        //  - vaccine **name** is `vaccineName`, not `name`
+        //  - date is `date` in ISO `YYYY-MM-DD`
+        document.getElementById("v_profile").textContent = fmt(profileName);
+        document.getElementById("v_vaccine").textContent = fmt(v.vaccineName);
+        document.getElementById("v_date").textContent = fmtDate(v.date);
+        document.getElementById("v_dose").textContent = fmt(v.dose);
+        document.getElementById("v_clinic").textContent = fmt(v.clinic);
+        document.getElementById("v_lot").textContent = fmt(v.lot);
+        document.getElementById("v_notes").textContent = fmt(v.notes);
+        document.getElementById("v_sideEffects").textContent = fmt(v.sideEffects);
+
+        // Expiration badge
+        const badge = document.getElementById("expires");
+        const exp = Number(data?.expiresAt ?? 0) * 1000; // secs -> ms
+        if (exp > Date.now()) {
+          const days = Math.ceil((exp - Date.now()) / (1000 * 60 * 60 * 24));
+          badge.textContent = `Expires in ${days} day${days === 1 ? "" : "s"}`;
+          badge.hidden = false;
+        } else if (data?.expiresAt) {
+          badge.textContent = "Expired";
+          badge.hidden = false;
+        }
+      } catch (e) {
+        console.error(e);
+        alert("Could not load this shared record.");
+      }
+    })();
+  </script>
+</body>
+</html>

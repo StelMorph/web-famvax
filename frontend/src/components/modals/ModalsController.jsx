@@ -1,161 +1,305 @@
 // src/components/modals/ModalsController.jsx
-
-import React, { useContext } from 'react';
+import React, { useContext, useMemo, useState, useEffect } from 'react';
 import { AppContext } from '../../contexts/AppContext.js';
+import EditProfileModal from './profiles/EditProfileModal.jsx';
+import ManageSharingModal from './profiles/ManageSharingModal.jsx';
+import FeedbackModal from './global/FeedbackModal.jsx';
+import AddMethodModal from './global/AddMethodModal.jsx';
+import AiScanMethodModal from './global/AiScanMethodModal.jsx';
+import AIScanCameraScreen from '../../scan/AIScanCameraScreen.jsx';
+import ConfirmEmailModal from './auth/ConfirmEmailModal.jsx';
+import ForgotPasswordModal from './auth/ForgotPasswordModal.jsx';
+import AddEditVaccineModal from './vaccines/AddEditVaccineModal.jsx';
+import ModalUndoBar from './global/ModalUndoBar.jsx';
+import VaccineShareModal from './vaccines/VaccineShareModal.jsx';
+import AddProfileModal from './profiles/AddProfileModal.jsx'; // <-- 1. IMPORT NEW MODAL
 import api from '../../api/apiService.js';
 
-import EditProfileModal from './EditProfileModal.jsx';
-import ManageSharingModal from './ManageSharingModal.jsx';
-import FeedbackModal from './FeedbackModal.jsx';
-import AddMethodModal from './AddMethodModal.jsx';
-import AiScanMethodModal from './AiScanMethodModal.jsx';
-import AIScanCameraScreen from '../../scan/AIScanCameraScreen.jsx';
-import ConfirmEmailModal from './ConfirmEmailModal.jsx';
-import ForgotPasswordModal from './ForgotPasswordModal.jsx';
-import AddEditVaccineModal from './AddEditVaccineModal.jsx';
-
 function ModalsController() {
-    const { appState, setAppState, navigateTo, showNotification, setAllProfiles, allProfiles } = useContext(AppContext);
+  const context = useContext(AppContext);
 
-    if (!appState.activeModal) return null;
+  // keep hooks stable even if there's no modal/context
+  const appState = context?.appState || {};
+  const navigateTo = context?.navigateTo || (() => {});
+  const showNotification = context?.showNotification || (() => {});
+  const setAllProfiles = context?.setAllProfiles || (() => {});
+  const showModal = context?.showModal || (() => {});
 
-    const closeModal = () => {
-        setAppState(prev => ({ 
-            ...prev, activeModal: null, currentProfile: null, currentEditingVaccine: null, mode: null,
-        }));
-    };
-    
-    const handleUpdateProfile = (updatedProfile) => {
-        setAllProfiles(prevData => prevData.map(p => 
-            p.profileId === updatedProfile.profileId ? { ...p, ...updatedProfile } : p
-        ));
-        showNotification({ type: 'success', message: 'Profile updated successfully!' });
-        closeModal();
-    };
+  const {
+    activeModal,
+    currentProfile,
+    currentEditingVaccine,
+    mode,
+    emailToVerify,
+    addType,
+    currentProfileId,
+  } = appState;
 
-    // --- THIS IS THE BUG FIX ---
-    // The 'mode' parameter was unreliable. This new logic is more robust.
-    const handleSaveVaccine = (savedRecord) => {
-         setAllProfiles(currentProfiles => {
-            return currentProfiles.map(p => {
-                if (p.profileId === appState.currentProfileId) {
-                    // Check if the saved record's ID already exists in this profile's vaccine list.
-                    const existingVaccineIndex = p.vaccines?.findIndex(v => v.vaccineId === savedRecord.vaccineId) ?? -1;
+  const closeModal = () => showModal(null);
 
-                    let newVaccines;
-                    if (existingVaccineIndex > -1) {
-                        // If it exists, it's an UPDATE. Replace the item at the found index.
-                        newVaccines = [...p.vaccines];
-                        newVaccines[existingVaccineIndex] = savedRecord;
-                    } else {
-                        // If it does not exist, it's an ADD. Append it to the end.
-                        newVaccines = [...(p.vaccines || []), savedRecord];
-                    }
-                    return { ...p, vaccines: newVaccines };
-                }
-                return p;
-            });
-        });
-        showNotification({type: 'success', message: `Record saved successfully!`});
-        closeModal();
-    };
-    
-    const handleDeleteVaccine = (vaccineId) => {
-        setAllProfiles(currentProfiles => {
-            return currentProfiles.map(p => {
-                if (p.profileId === appState.currentProfileId) {
-                    return { ...p, vaccines: p.vaccines.filter(v => v.vaccineId !== vaccineId) };
-                }
-                return p;
-            });
-        });
-        showNotification({ type: 'success', message: 'Record deleted.' });
-        closeModal();
-    };
-    
-    const handleAiScan = () => {
-        setAppState(prev => ({ ...prev, activeModal: 'ai-scan-method' }));
-    };
-    
-    const handleManualEntry = () => {
-        if (appState.addType === 'member') {
-            navigateTo('add-profile-screen');
-            closeModal();
-        } else {
-            setAppState(prev => ({
-                ...prev,
-                activeModal: 'add-edit-vaccine',
-                mode: 'add',
-            }));
-        }
-    };
+  /* ---------------- Undo state (global toast) ---------------- */
+  const [undoState, setUndoState] = useState(null);
+  // undoState: { profileId, vaccineId, undoToken, expiresAt:number(ms), record? }
+  const [now, setNow] = useState(Date.now());
 
-    const handleScanSuccess = (extractedData) => {
-        navigateTo('ai-scan-review-extracted', { extractedData, addType: appState.addType, currentProfileId: appState.currentProfileId });
-        closeModal();
-    };
+  useEffect(() => {
+    if (!undoState) return;
+    const t = setInterval(() => setNow(Date.now()), 300);
+    return () => clearInterval(t);
+  }, [undoState]);
 
-    const handleEmailConfirmSuccess = () => {
-        showNotification({ type: 'success', message: 'Email verified! You can now log in.' });
-        closeModal();
-        navigateTo('auth-screen');
-    };
+  const secondsLeft = useMemo(() => {
+    if (!undoState) return 0;
+    const leftMs = Math.max(0, undoState.expiresAt - now);
+    return Math.ceil(leftMs / 1000);
+  }, [undoState, now]);
 
-    const handleResendCode = () => {
-        showNotification({ type: 'info', message: `A new code has been sent to ${appState.emailToVerify}.`});
-    };
-    
-    const handleFileSelectedForScan = (file) => {
-        console.log("File selected for AI Scan:", file.name);
-        navigateTo('ai-scan-review-extracted', { 
-            extractedData: {},
-            addType: appState.addType, 
-            currentProfileId: appState.currentProfileId 
-        });
-        closeModal();
-    };
+  const clearUndo = () => setUndoState(null);
 
-    const handleTakePhoto = () => {
-        setAppState(prev => ({ ...prev, activeModal: 'camera-scan' }));
-    };
-    
-    const renderModalContent = () => {
-        switch (appState.activeModal) {
-            case 'edit-profile':
-                return <EditProfileModal profile={appState.currentProfile} onUpdate={handleUpdateProfile} onClose={closeModal} />;
-            case 'manage-sharing':
-                return <ManageSharingModal profile={appState.currentProfile} onClose={closeModal} />;
-            case 'add-edit-vaccine':
-                 return <AddEditVaccineModal vaccine={appState.currentEditingVaccine} mode={appState.mode} profileId={appState.currentProfileId} onClose={closeModal} onSave={handleSaveVaccine} onDelete={handleDeleteVaccine} />;
-            case 'feedback-modal': 
-                return <FeedbackModal onClose={closeModal} />;
-            case 'add-method': 
-                return <AddMethodModal onClose={closeModal} onAiScan={handleAiScan} onManual={handleManualEntry} title={`Add ${appState.addType === 'record' ? 'Record' : 'Member'}`} />;
-            case 'ai-scan-method':
-                 return <AiScanMethodModal onTakePhoto={handleTakePhoto} onFileSelected={handleFileSelectedForScan} onClose={closeModal} />;
-            case 'camera-scan': 
-                return <AIScanCameraScreen onClose={closeModal} onSuccess={handleScanSuccess} />;
-            case 'confirm-email': 
-                return <ConfirmEmailModal email={appState.emailToVerify} onConfirm={handleEmailConfirmSuccess} onClose={closeModal} onResend={handleResendCode} />;
-            case 'forgot-password': 
-                return <ForgotPasswordModal onClose={closeModal} />;
-            default:
-                closeModal();
-                return null;
-        }
-    };
-
-    // --- UI REFINEMENT ---
-    // Added 'add-edit-vaccine' to the list of modals that should not close on overlay click.
-    const modalsToKeepOpen = ['confirm-email', 'forgot-password', 'camera-scan', 'add-edit-vaccine'];
-
-    return (
-        <div className="modal-overlay" onClick={modalsToKeepOpen.includes(appState.activeModal) ? undefined : closeModal}>
-            <div onClick={(e) => e.stopPropagation()}>
-                {renderModalContent()}
-            </div>
-        </div>
+  /* ---------------- Profiles handlers ---------------- */
+  const handleUpdateProfile = (updatedProfile) => {
+    setAllProfiles((prev) =>
+      prev.map((p) => (p.profileId === updatedProfile.profileId ? { ...p, ...updatedProfile } : p)),
     );
+    showNotification({ type: 'success', message: 'Profile updated!' });
+    closeModal();
+  };
+
+  // The new AddProfileModal updates state internally via context,
+  // so we just need a handler to close the modal upon completion.
+  const handleProfileCreated = () => {
+    closeModal();
+  };
+
+  /* ---------------- Vaccines save/delete ---------------- */
+  const handleSaveVaccine = (savedRecord) => {
+    setAllProfiles((curr) =>
+      curr.map((p) => {
+        if (p.profileId === currentProfileId) {
+          const idx = p.vaccines?.findIndex((v) => v.vaccineId === savedRecord.vaccineId) ?? -1;
+          let newVaccines = idx > -1 ? [...p.vaccines] : [...(p.vaccines || [])];
+          if (idx > -1) newVaccines[idx] = savedRecord;
+          else newVaccines.push(savedRecord);
+          return { ...p, vaccines: newVaccines };
+        }
+        return p;
+      }),
+    );
+    showNotification({ type: 'success', message: 'Record saved!' });
+    closeModal();
+  };
+
+  /**
+   * onDelete payload can be:
+   *  - vaccineId (legacy, no undo)
+   *  - { vaccineId, undoToken, undoExpiresAt, record } (new soft-delete flow)
+   */
+  const handleDeleteVaccine = (payload) => {
+    const isObject = payload && typeof payload === 'object';
+    const vaccineId = isObject ? payload.vaccineId : payload;
+    const undoToken = isObject ? payload.undoToken : undefined;
+    const undoExpiresAt = isObject ? payload.undoExpiresAt : undefined;
+    const backupRecord = isObject ? payload.record : undefined;
+
+    // optimistic removal in state for current profile
+    setAllProfiles((curr) =>
+      curr.map((p) =>
+        p.profileId === currentProfileId
+          ? { ...p, vaccines: (p.vaccines || []).filter((v) => v.vaccineId !== vaccineId) }
+          : p,
+      ),
+    );
+
+    if (undoToken && undoExpiresAt) {
+      setUndoState({
+        profileId: currentProfileId,
+        vaccineId,
+        undoToken,
+        expiresAt: undoExpiresAt,
+        record: backupRecord || null,
+      });
+      // ✅ Close the Add/Edit modal immediately after delete
+      closeModal();
+    } else {
+      showNotification({ type: 'success', message: 'Record deleted.' });
+      closeModal();
+    }
+  };
+
+  const handleUndo = async () => {
+    if (!undoState) return;
+    try {
+      await api.restoreVaccine(undoState.profileId, undoState.vaccineId, undoState.undoToken);
+      if (undoState.record) {
+        setAllProfiles((curr) =>
+          curr.map((p) =>
+            p.profileId === undoState.profileId
+              ? { ...p, vaccines: [undoState.record, ...(p.vaccines || [])] }
+              : p,
+          ),
+        );
+      }
+      showNotification({ type: 'success', message: 'Record restored.' });
+    } catch (e) {
+      console.error(e);
+      showNotification({
+        type: 'error',
+        title: 'Undo failed',
+        message: 'Could not restore the record.',
+      });
+    } finally {
+      clearUndo();
+    }
+  };
+
+  // When timer reaches zero, just clear (record remains deleted)
+  useEffect(() => {
+    if (!undoState) return;
+    if (secondsLeft <= 0) clearUndo();
+  }, [secondsLeft, undoState]);  
+
+  /* ---------------- Add flow helpers ---------------- */
+  const handleAiScan = () => showModal('ai-scan-method');
+
+  const handleManualEntry = () => {
+    if (addType === 'member') {
+      // 2. UPDATE "ADD MEMBER" FLOW TO USE THE MODAL
+      showModal('add-profile');
+    } else {
+      showModal('add-edit-vaccine', { mode: 'add', currentProfileId });
+    }
+  };
+
+  const handleScanSuccess = (extractedData) => {
+    navigateTo('ai-scan-review-extracted', { extractedData, addType, currentProfileId });
+    closeModal();
+  };
+
+  const handleEmailConfirmSuccess = () => {
+    showNotification({
+      type: 'success',
+      title: 'Success!',
+      message: 'Email verified! You can now log in.',
+    });
+    closeModal();
+    navigateTo('auth-screen');
+  };
+
+  const handleResendCode = async (email) => {
+    console.log(`Resending code to ${email}...`);
+    showNotification({
+      type: 'info',
+      title: 'Code Sent',
+      message: `A new code has been sent to ${email}.`,
+    });
+  };
+
+  const handleFileSelectedForScan = (file) => {
+    navigateTo('ai-scan-review-extracted', { extractedData: {}, addType, currentProfileId });
+    closeModal();
+  };
+
+  const renderModalContent = () => {
+    switch (activeModal) {
+      // 3. ADD CASE TO RENDER THE NEW MODAL
+      case 'add-profile':
+        return <AddProfileModal onClose={closeModal} onProfileCreated={handleProfileCreated} />;
+      case 'edit-profile':
+        return (
+          <EditProfileModal
+            profile={currentProfile}
+            onUpdate={handleUpdateProfile}
+            onClose={closeModal}
+          />
+        );
+      case 'manage-sharing':
+        return <ManageSharingModal profile={currentProfile} onClose={closeModal} />;
+      case 'add-edit-vaccine':
+        return (
+          <AddEditVaccineModal
+            vaccine={currentEditingVaccine}
+            mode={mode}
+            profileId={currentProfileId}
+            onClose={closeModal}
+            onSave={handleSaveVaccine}
+            onDelete={handleDeleteVaccine}
+          />
+        );
+      case 'vaccine-share': // <-- NEW
+        return (
+          <VaccineShareModal
+            profileId={currentProfileId || currentProfile?.profileId || currentProfile?.id}
+            vaccine={currentEditingVaccine}
+            onClose={closeModal}
+          />
+        );
+      case 'feedback-modal':
+        return <FeedbackModal onClose={closeModal} />;
+      case 'add-method':
+        return (
+          <AddMethodModal
+            onClose={closeModal}
+            onAiScan={handleAiScan}
+            onManual={handleManualEntry}
+            title={`Add ${addType === 'record' ? 'Record' : 'Member'}`}
+          />
+        );
+      case 'ai-scan-method':
+        return (
+          <AiScanMethodModal
+            onTakePhoto={handleTakePhoto}
+            onFileSelected={handleFileSelectedForScan}
+            onClose={closeModal}
+          />
+        );
+      case 'camera-scan':
+        return <AIScanCameraScreen onClose={closeModal} onSuccess={handleScanSuccess} />;
+      case 'confirm-email':
+        return (
+          <ConfirmEmailModal
+            email={emailToVerify}
+            onConfirm={handleEmailConfirmSuccess}
+            onClose={closeModal}
+            onResend={handleResendCode}
+          />
+        );
+      case 'forgot-password':
+        return <ForgotPasswordModal onClose={closeModal} />;
+      default:
+        return null;
+    }
+  };
+
+  const handleTakePhoto = () => showModal('camera-scan');
+
+  const modalsToKeepOpen = [
+    'confirm-email',
+    'forgot-password',
+    'camera-scan',
+    'add-edit-vaccine',
+    'add-profile',
+  ];
+  const handleOverlayClick = modalsToKeepOpen.includes(activeModal) ? undefined : closeModal;
+
+  return (
+    <>
+      {/* Global Undo toast (top-center, alarm style) */}
+      <ModalUndoBar
+        open={!!undoState && secondsLeft > 0}
+        message="Record deleted."
+        secondsLeft={secondsLeft}
+        onUndo={handleUndo}
+        onClose={() => clearUndo()}
+      />
+
+      {/* Modal overlay & content */}
+      {activeModal && (
+        <div className="modal-overlay" onClick={handleOverlayClick}>
+          <div onClick={(e) => e.stopPropagation()}>{renderModalContent()}</div>
+        </div>
+      )}
+    </>
+  );
 }
 
 export default ModalsController;

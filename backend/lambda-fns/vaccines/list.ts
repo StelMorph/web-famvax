@@ -1,55 +1,36 @@
-import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
+// backend/lambda-fns/vaccines/list.ts
 import { QueryCommand } from '@aws-sdk/lib-dynamodb';
 import { docClient, CORS_HEADERS } from '../common/clients';
-import { checkPermissions } from '../common/auth';
+import { createHandler, AuthenticatedHandler } from '../common/middleware';
+import { z } from 'zod';
 
-export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
-  if (event.httpMethod === 'OPTIONS') {
-    return { statusCode: 204, headers: CORS_HEADERS, body: '' };
+const listVaccinesLogic: AuthenticatedHandler = async (event) => {
+  const { profileId } = event.pathParameters || {};
+
+  if (!profileId) {
+    return { statusCode: 400, body: JSON.stringify({ message: 'Profile ID is required.' }) };
   }
-  try {
-    const userId = event.requestContext.authorizer?.jwt.claims.sub;
-    const userEmail = event.requestContext.authorizer?.jwt.claims.email;
-    const { profileId } = event.pathParameters || {};
 
-    if (!profileId || !userId || !userEmail) {
-      return {
-        statusCode: 400,
-        headers: CORS_HEADERS,
-        body: JSON.stringify({ message: 'Missing required parameters.' }),
-      };
-    }
-
-    const canView = await checkPermissions(userId, userEmail, profileId, 'Viewer');
-    if (!canView) {
-      return {
-        statusCode: 403,
-        headers: CORS_HEADERS,
-        body: JSON.stringify({ message: 'Forbidden' }),
-      };
-    }
-
-    const command = new QueryCommand({
+  const { Items: vaccines } = await docClient.send(
+    new QueryCommand({
       TableName: process.env.VACCINES_TABLE_NAME!,
       IndexName: 'profileId-index',
-      KeyConditionExpression: 'profileId = :profileId',
-      ExpressionAttributeValues: { ':profileId': profileId },
-    });
-    const { Items } = await docClient.send(command);
-    return {
-      statusCode: 200,
-      headers: CORS_HEADERS,
-      body: JSON.stringify(Items || []),
-    };
-  } catch (error: any) {
-    console.error('Error fetching vaccines:', error);
-    return {
-      statusCode: 500,
-      headers: CORS_HEADERS,
-      body: JSON.stringify({
-        message: 'Internal Server Error',
-        error: error.message,
-      }),
-    };
-  }
+      KeyConditionExpression: 'profileId = :pid',
+      // --- THIS IS THE FIX ---
+      // Add a filter expression to exclude records that have the 'deletedAt' attribute.
+      FilterExpression: 'attribute_not_exists(deletedAt)',
+      ExpressionAttributeValues: { ':pid': profileId },
+    }),
+  );
+
+  return { statusCode: 200, headers: CORS_HEADERS, body: JSON.stringify(vaccines || []) };
 };
+
+export const handler = createHandler({
+  schema: z.object({}),
+  handler: listVaccinesLogic,
+  access: (event) => ({
+    requireDevice: true,
+    profile: { id: event.pathParameters?.profileId, requiredRole: 'Viewer' },
+  }),
+});

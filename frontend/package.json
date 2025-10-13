@@ -1,42 +1,45 @@
 {
-    "name": "frontend",
-    "version": "0.1.0",
-    "private": true,
-    "dependencies": {
-        "@aws-sdk/client-cognito-identity-provider": "^3.848.0",
-        "@fortawesome/fontawesome-svg-core": "^6.5.1",
-        "@fortawesome/free-brands-svg-icons": "^6.5.1",
-        "@fortawesome/free-solid-svg-icons": "^6.5.1",
-        "@fortawesome/react-fontawesome": "^0.2.0",
-        "react": "^18.2.0",
-        "react-dom": "^18.2.0",
-        "react-input-mask": "^2.0.4"
-    },
-    "devDependencies": {
-    "@types/aws-lambda": "^8.10.152",
-    "@vitejs/plugin-react": "^4.2.0",
-    "aws-cdk-lib": "^2.204.0",
-    "constructs": "^10.4.2",
-    "esbuild": "^0.25.8",
-    "tsx": "^4.20.3",
-    "typescript": "^5.3.3",
-    "vite": "^7.0.5",
-    "eslint": "^8.57.0",
-    "eslint-config-prettier": "^9.1.0",
-    "eslint-plugin-react": "^7.34.1",
-    "eslint-plugin-react-hooks": "^4.6.0",
-    "@typescript-eslint/eslint-plugin": "^6.14.0",
-    "@typescript-eslint/parser": "^6.14.0",
-    "prettier": "^3.2.5",
-    "lint-staged": "^15.2.2",
-    "husky": "^9.0.11"
-    },
-    "scripts": {
+  "name": "frontend",
+  "version": "0.1.0",
+  "private": true,
+  "dependencies": {
+    "@aws-sdk/client-cognito-identity-provider": "^3.600.0",
+    "@fortawesome/fontawesome-svg-core": "^6.5.2",
+    "@fortawesome/free-brands-svg-icons": "^6.5.2",
+    "@fortawesome/free-solid-svg-icons": "^6.5.2",
+    "@fortawesome/react-fontawesome": "^0.2.0",
+    "amazon-cognito-identity-js": "^6.3.15",
+    "date-fns": "^4.1.0",
+    "jwt-decode": "^4.0.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-input-mask": "^2.0.4"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.37.0",
+    "@typescript-eslint/eslint-plugin": "^8.46.0",
+    "@typescript-eslint/parser": "^8.46.0",
+    "@vitejs/plugin-react": "^4.3.2",
+    "eslint": "^9.37.0",
+    "eslint-plugin-react": "^7.37.5",
+    "eslint-plugin-react-hooks": "^5.2.0",
+    "eslint-plugin-react-refresh": "^0.4.23",
+    "globals": "^16.4.0",
+    "prettier": "^3.6.2",
+    "typescript": "^5.9.3"
+  },
+  "scripts": {
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "lint": "eslint . --ext .ts,.tsx,.js,.jsx --fix",
+    "lint": "eslint . --ext .ts,.tsx,.js,.jsx",
+    "lint:fix": "eslint . --ext .ts,.tsx,.js,.jsx --fix",
     "format": "prettier --write .",
-    "typecheck": "tsc --noEmit"
-    }
+    "typecheck": "tsc --noEmit",
+    "prepare": "husky"
+  },
+  "lint-staged": {
+    "*.{js,jsx,ts,tsx}": "eslint --fix",
+    "*.{js,jsx,ts,tsx,json,css,scss,md}": "prettier --write"
+  }
 }
