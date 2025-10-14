@@ -32,6 +32,7 @@ function AiScanMethodModal({ onTakePhoto, onFileSelected, onClose }) {
           onChange={handleFileChange}
           style={{ display: 'none' }}
           accept="image/*,application/pdf"
+          capture="environment"
         />
 
         <h4 className="modal-subtitle-with-icon">

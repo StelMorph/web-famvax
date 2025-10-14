@@ -5,7 +5,7 @@ import { AppProvider } from './contexts/AppContext.js';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faSpinner } from '@fortawesome/free-solid-svg-icons';
 import { jwtDecode } from 'jwt-decode';
-
+import { createPortal } from 'react-dom';
 // Pages
 import AuthScreen from './pages/Auth/AuthScreen.jsx';
 import SignupScreen from './pages/Auth/SignupScreen.jsx';
@@ -19,8 +19,9 @@ import SubscriptionScreen from './pages/Settings/SubscriptionScreen.jsx';
 import PrivacyPolicyScreen from './pages/Settings/PrivacyPolicyScreen.jsx';
 import StandardScheduleScreen from './pages/Settings/StandardScheduleScreen.jsx';
 import SharedWithMeScreen from './pages/SharedWithMe/SharedWithMeScreen.jsx';
-import AIScanReviewExtractedScreen from './scan/AIScanReviewExtractedScreen.jsx';
 import ManageDevicesScreen from './pages/Settings/ManageDevicesScreen.jsx';
+import AIScanReviewExtractedDataScreen from './pages/MyFamily/AIScanReviewExtractedDataScreen.jsx';
+import CameraScanModal from './components/modals/global/CameraScanModal.jsx';
 
 // Components
 import ControlPanel from './components/layout/ControlPanel.jsx';
@@ -93,6 +94,9 @@ function App() {
   const [activeScreen, setActiveScreen] = useState(initialScreen);
   const [notification, setNotification] = useState(null);
 
+  const [isScanning, setIsScanning] = useState(false);
+  const [scannedData, setScannedData] = useState(null);
+  const [scanRecordType, setScanRecordType] = useState('profile');
   const showNotification = useCallback(
     (details) => setNotification({ ...details, id: Date.now() }),
     [],
@@ -127,6 +131,101 @@ function App() {
   const showModal = useCallback((modalId, params = {}) => {
     setAppState((prev) => ({ ...prev, activeModal: modalId, ...params }));
   }, []);
+
+  const startScanning = useCallback((recordType) => {
+    setScanRecordType(recordType);
+    setAppState((prev) => ({ ...prev, activeModal: null })); // Close choice modal
+    setIsScanning(true); // Open camera modal
+  }, []);
+
+  const handleScanSuccess = useCallback(
+    (data) => {
+      setScannedData(data);
+      setIsScanning(false);
+      navigateTo('ai-scan-review-extracted');
+    },
+    [navigateTo],
+  );
+
+  /* -------------------------------------------------------------
+   * Unified fetch for My Family (profiles + shares + devices)
+   * ----------------------------------------------------------- */
+  const fetchAllForMyFamily = useCallback(async () => {
+    if (unifiedInFlight.current) return;
+    unifiedInFlight.current = true;
+    setAppState((prev) => ({ ...prev, areDetailsLoading: true }));
+    try {
+      const [ownedP, shares, devs] = await Promise.all([
+        (api.getOwnedProfiles ? api.getOwnedProfiles() : api.getProfiles()).catch(() => []),
+        api.getReceivedShares().catch(() => []),
+        api.listDevices({ force: true }).catch(() => []), // <- single devices request after login
+      ]);
+
+      setReceivedShares(shares || []);
+      setPendingInviteCount((shares || []).filter((s) => s.status === 'PENDING').length);
+
+      const accepted = (shares || []).filter((s) => s.status === 'ACCEPTED');
+      const sharedDetails = await Promise.all(
+        accepted.map((s) => api.getSharedProfileDetails(s.profileId).catch(() => null)),
+      );
+      const formattedShared = (sharedDetails || []).filter(Boolean).map((p, i) => ({
+        ...p,
+        isShared: true,
+        role: accepted[i].role,
+        ownerEmail: accepted[i].ownerEmail,
+        shareId: accepted[i].shareId,
+      }));
+
+      const combined = [...(ownedP || []), ...formattedShared];
+      setAllProfiles(combined.map((p) => ({ ...p, vaccines: null })));
+      setDevices(devs || []);
+    } finally {
+      setAppState((prev) => ({ ...prev, areDetailsLoading: false }));
+      unifiedInFlight.current = false;
+    }
+  }, []);
+
+  const handleSaveReview = useCallback(
+    async (finalData) => {
+      setAppState((prev) => ({ ...prev, areDetailsLoading: true }));
+      try {
+        if (scanRecordType === 'profile') {
+          await api.createProfile(finalData);
+          showNotification({
+            type: 'success',
+            title: 'Profile Created',
+            message: `${finalData.name} has been added.`,
+          });
+          await fetchAllForMyFamily(); // Uses the correct function name
+          navigateTo('my-family-screen');
+        } else if (scanRecordType === 'vaccine') {
+          const profileId = appState.currentProfileId;
+          if (!profileId) throw new Error('No profile selected for vaccine record.');
+
+          // Using `createVaccine` to match your manual save logic from AddEditVaccineModal
+          await api.createVaccine(profileId, finalData);
+
+          showNotification({
+            type: 'success',
+            title: 'Vaccine Added',
+            message: `${finalData.vaccineName} record saved.`,
+          });
+
+          // This is the correct redirection you requested
+          navigateTo('profile-detail-screen', { currentProfileId: profileId });
+        }
+      } catch (error) {
+        showNotification({
+          type: 'error',
+          title: 'Save Failed',
+          message: error.message || 'Could not save the record.',
+        });
+      } finally {
+        setAppState((prev) => ({ ...prev, areDetailsLoading: false }));
+      }
+    },
+    [scanRecordType, appState.currentProfileId, navigateTo, showNotification, fetchAllForMyFamily],
+  );
 
   // Refs / guards
   const bootDidRun = useRef(false);
@@ -184,44 +283,6 @@ function App() {
     window.addEventListener('device-ready', onReady);
     return () => window.removeEventListener('device-ready', onReady);
   }, [navigateTo]);
-
-  /* -------------------------------------------------------------
-   * Unified fetch for My Family (profiles + shares + devices)
-   * ----------------------------------------------------------- */
-  const fetchAllForMyFamily = useCallback(async () => {
-    if (unifiedInFlight.current) return;
-    unifiedInFlight.current = true;
-    setAppState((prev) => ({ ...prev, areDetailsLoading: true }));
-    try {
-      const [ownedP, shares, devs] = await Promise.all([
-        (api.getOwnedProfiles ? api.getOwnedProfiles() : api.getProfiles()).catch(() => []),
-        api.getReceivedShares().catch(() => []),
-        api.listDevices({ force: true }).catch(() => []), // <- single devices request after login
-      ]);
-
-      setReceivedShares(shares || []);
-      setPendingInviteCount((shares || []).filter((s) => s.status === 'PENDING').length);
-
-      const accepted = (shares || []).filter((s) => s.status === 'ACCEPTED');
-      const sharedDetails = await Promise.all(
-        accepted.map((s) => api.getSharedProfileDetails(s.profileId).catch(() => null)),
-      );
-      const formattedShared = (sharedDetails || []).filter(Boolean).map((p, i) => ({
-        ...p,
-        isShared: true,
-        role: accepted[i].role,
-        ownerEmail: accepted[i].ownerEmail,
-        shareId: accepted[i].shareId,
-      }));
-
-      const combined = [...(ownedP || []), ...formattedShared];
-      setAllProfiles(combined.map((p) => ({ ...p, vaccines: null })));
-      setDevices(devs || []);
-    } finally {
-      setAppState((prev) => ({ ...prev, areDetailsLoading: false }));
-      unifiedInFlight.current = false;
-    }
-  }, []);
 
   /* -------------------------------------------------------------
    * Background warm-up ONCE per session
@@ -432,6 +493,7 @@ function App() {
       refreshUserData: fetchAllForMyFamily,
       fetchDetailedData: fetchAllForMyFamily,
       signOut: handleSignOut,
+      startScanning,
     }),
     [
       currentUser,
@@ -448,6 +510,7 @@ function App() {
       showNotification,
       fetchAllForMyFamily,
       handleSignOut,
+      startScanning,
     ],
   );
 
@@ -548,7 +611,15 @@ function App() {
           />
         );
       case 'ai-scan-review-extracted':
-        return <AIScanReviewExtractedScreen onBack={goBack} />;
+        return (
+          <AIScanReviewExtractedDataScreen
+            scannedData={scannedData}
+            recordType={scanRecordType}
+            onSave={handleSaveReview}
+            onDiscard={goBack}
+            onBack={goBack}
+          />
+        );
       case 'manage-devices-screen':
         return (
           <ManageDevicesScreen
@@ -585,6 +656,15 @@ function App() {
           )}
         </div>
       </div>
+
+      {/* --- 2. THE SECOND FIX: RENDER CAMERA IN A PORTAL --- */}
+      {isScanning &&
+        createPortal(
+          <div className="modal-overlay">
+            <CameraScanModal onSuccess={handleScanSuccess} onClose={() => setIsScanning(false)} />
+          </div>,
+          document.body,
+        )}
     </AppProvider>
   );
 }

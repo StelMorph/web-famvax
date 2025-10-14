@@ -35,7 +35,7 @@ const MyFamilyPopulated = ({ profiles, stats, onAddProfile, onSelectProfile }) =
       <StatCard
         icon={faUsers}
         title="Family Members"
-        count={profiles.length}
+        count={profiles?.length || 0}
         colorClass="icon-bg-blue"
       />
       <StatCard
@@ -52,11 +52,11 @@ const MyFamilyPopulated = ({ profiles, stats, onAddProfile, onSelectProfile }) =
       />
     </div>
     <div className="profile-grid-new">
-      {profiles.map((profile) => (
+      {profiles?.map((profile) => (
         <ProfileCard
-          key={profile.profileId}
+          key={profile.profileId || profile.id}
           profile={profile}
-          onSelect={() => onSelectProfile(profile.profileId)}
+          onSelect={() => onSelectProfile(profile.profileId || profile.id)}
         />
       ))}
     </div>
@@ -64,15 +64,17 @@ const MyFamilyPopulated = ({ profiles, stats, onAddProfile, onSelectProfile }) =
 );
 
 function MyFamilyScreen() {
-  const { navigateTo, allProfiles, showModal } = useContext(AppContext);
+  const { navigateTo, allProfiles, showModal, startScanning } = useContext(AppContext);
 
   const stats = useMemo(() => {
     if (!allProfiles) return { upcomingCount: 0, completedCount: 0 };
     return allProfiles.reduce(
       (acc, profile) => {
         if (profile.vaccines) {
-          acc.completedCount += profile.vaccines.filter((v) => v.date).length;
-          acc.upcomingCount += profile.vaccines.filter((v) => v.nextDueDate && !v.date).length;
+          acc.completedCount += profile.vaccines.filter((v) => v.dateAdministered).length;
+          acc.upcomingCount += profile.vaccines.filter(
+            (v) => v.nextDueDate && !v.dateAdministered,
+          ).length;
         }
         return acc;
       },
@@ -85,8 +87,16 @@ function MyFamilyScreen() {
   };
 
   const handleAddProfile = () => {
-    // UPDATE: Directly open the 'add-profile' modal
-    showModal('add-profile');
+    showModal('add-method', {
+      title: 'Add Family Member',
+      onManual: () => {
+        showModal('add-profile');
+      },
+      onAiScan: () => {
+        // This will now work because `startScanning` exists in the context
+        startScanning('profile');
+      },
+    });
   };
 
   return (

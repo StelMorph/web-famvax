@@ -11,9 +11,9 @@ import api from '../../../api/apiService.js';
 const INITIAL_STATE = {
   name: '',
   dob: '',
-  relationship: 'Child',
-  gender: 'Female',
-  bloodType: 'O+',
+  relationship: 'Options',
+  gender: 'Options',
+  bloodType: 'Options',
   nationality: '',
   allergies: '',
   medicalConditions: '',

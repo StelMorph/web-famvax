@@ -6,40 +6,40 @@ import ManageSharingModal from './profiles/ManageSharingModal.jsx';
 import FeedbackModal from './global/FeedbackModal.jsx';
 import AddMethodModal from './global/AddMethodModal.jsx';
 import AiScanMethodModal from './global/AiScanMethodModal.jsx';
-import AIScanCameraScreen from '../../scan/AIScanCameraScreen.jsx';
+import CameraScanModal from './global/CameraScanModal.jsx';
 import ConfirmEmailModal from './auth/ConfirmEmailModal.jsx';
 import ForgotPasswordModal from './auth/ForgotPasswordModal.jsx';
 import AddEditVaccineModal from './vaccines/AddEditVaccineModal.jsx';
 import ModalUndoBar from './global/ModalUndoBar.jsx';
 import VaccineShareModal from './vaccines/VaccineShareModal.jsx';
-import AddProfileModal from './profiles/AddProfileModal.jsx'; // <-- 1. IMPORT NEW MODAL
+import AddProfileModal from './profiles/AddProfileModal.jsx';
 import api from '../../api/apiService.js';
 
 function ModalsController() {
   const context = useContext(AppContext);
 
-  // keep hooks stable even if there's no modal/context
-  const appState = context?.appState || {};
-  const navigateTo = context?.navigateTo || (() => {});
-  const showNotification = context?.showNotification || (() => {});
-  const setAllProfiles = context?.setAllProfiles || (() => {});
-  const showModal = context?.showModal || (() => {});
+  // Destructure with fallbacks to prevent crashes if context is not yet available
+  const { appState, navigateTo, showNotification, setAllProfiles, showModal } = context || {};
 
+  // Get all necessary properties from appState, with fallbacks
   const {
     activeModal,
+    // Generic props for the 'add-method' modal, passed from the calling screen
+    title,
+    onManual,
+    onAiScan,
+    // Other specific props for various modals
     currentProfile,
     currentEditingVaccine,
     mode,
     emailToVerify,
-    addType,
     currentProfileId,
-  } = appState;
+  } = appState || {};
 
-  const closeModal = () => showModal(null);
+  const closeModal = () => showModal?.(null);
 
-  /* ---------------- Undo state (global toast) ---------------- */
+  // --- State and Handlers for Undo Functionality ---
   const [undoState, setUndoState] = useState(null);
-  // undoState: { profileId, vaccineId, undoToken, expiresAt:number(ms), record? }
   const [now, setNow] = useState(Date.now());
 
   useEffect(() => {
@@ -50,30 +50,28 @@ function ModalsController() {
 
   const secondsLeft = useMemo(() => {
     if (!undoState) return 0;
-    const leftMs = Math.max(0, undoState.expiresAt - now);
-    return Math.ceil(leftMs / 1000);
+    return Math.ceil(Math.max(0, undoState.expiresAt - now) / 1000);
   }, [undoState, now]);
 
-  const clearUndo = () => setUndoState(null);
+  useEffect(() => {
+    if (undoState && secondsLeft <= 0) setUndoState(null);
+  }, [secondsLeft, undoState]);
 
-  /* ---------------- Profiles handlers ---------------- */
+  // --- Handlers for Specific Modal Actions ---
   const handleUpdateProfile = (updatedProfile) => {
-    setAllProfiles((prev) =>
+    setAllProfiles?.((prev) =>
       prev.map((p) => (p.profileId === updatedProfile.profileId ? { ...p, ...updatedProfile } : p)),
     );
-    showNotification({ type: 'success', message: 'Profile updated!' });
+    showNotification?.({ type: 'success', message: 'Profile updated!' });
     closeModal();
   };
 
-  // The new AddProfileModal updates state internally via context,
-  // so we just need a handler to close the modal upon completion.
   const handleProfileCreated = () => {
     closeModal();
   };
 
-  /* ---------------- Vaccines save/delete ---------------- */
   const handleSaveVaccine = (savedRecord) => {
-    setAllProfiles((curr) =>
+    setAllProfiles?.((curr) =>
       curr.map((p) => {
         if (p.profileId === currentProfileId) {
           const idx = p.vaccines?.findIndex((v) => v.vaccineId === savedRecord.vaccineId) ?? -1;
@@ -85,24 +83,13 @@ function ModalsController() {
         return p;
       }),
     );
-    showNotification({ type: 'success', message: 'Record saved!' });
+    showNotification?.({ type: 'success', message: 'Record saved!' });
     closeModal();
   };
 
-  /**
-   * onDelete payload can be:
-   *  - vaccineId (legacy, no undo)
-   *  - { vaccineId, undoToken, undoExpiresAt, record } (new soft-delete flow)
-   */
   const handleDeleteVaccine = (payload) => {
-    const isObject = payload && typeof payload === 'object';
-    const vaccineId = isObject ? payload.vaccineId : payload;
-    const undoToken = isObject ? payload.undoToken : undefined;
-    const undoExpiresAt = isObject ? payload.undoExpiresAt : undefined;
-    const backupRecord = isObject ? payload.record : undefined;
-
-    // optimistic removal in state for current profile
-    setAllProfiles((curr) =>
+    const vaccineId = payload?.vaccineId || payload;
+    setAllProfiles?.((curr) =>
       curr.map((p) =>
         p.profileId === currentProfileId
           ? { ...p, vaccines: (p.vaccines || []).filter((v) => v.vaccineId !== vaccineId) }
@@ -110,28 +97,28 @@ function ModalsController() {
       ),
     );
 
-    if (undoToken && undoExpiresAt) {
+    if (payload?.undoToken && payload?.undoExpiresAt) {
       setUndoState({
         profileId: currentProfileId,
         vaccineId,
-        undoToken,
-        expiresAt: undoExpiresAt,
-        record: backupRecord || null,
+        undoToken: payload.undoToken,
+        expiresAt: payload.undoExpiresAt,
+        record: payload.record || null,
       });
-      // ✅ Close the Add/Edit modal immediately after delete
-      closeModal();
     } else {
-      showNotification({ type: 'success', message: 'Record deleted.' });
-      closeModal();
+      showNotification?.({ type: 'success', message: 'Record deleted.' });
     }
+    closeModal();
   };
 
   const handleUndo = async () => {
     if (!undoState) return;
     try {
-      await api.restoreVaccine(undoState.profileId, undoState.vaccineId, undoState.undoToken);
+      await api.restoreVaccine(undoState.profileId, undoState.vaccineId, {
+        undoToken: undoState.undoToken,
+      });
       if (undoState.record) {
-        setAllProfiles((curr) =>
+        setAllProfiles?.((curr) =>
           curr.map((p) =>
             p.profileId === undoState.profileId
               ? { ...p, vaccines: [undoState.record, ...(p.vaccines || [])] }
@@ -139,69 +126,51 @@ function ModalsController() {
           ),
         );
       }
-      showNotification({ type: 'success', message: 'Record restored.' });
+      showNotification?.({ type: 'success', message: 'Record restored.' });
     } catch (e) {
-      console.error(e);
-      showNotification({
+      showNotification?.({
         type: 'error',
         title: 'Undo failed',
         message: 'Could not restore the record.',
       });
     } finally {
-      clearUndo();
+      setUndoState(null);
     }
-  };
-
-  // When timer reaches zero, just clear (record remains deleted)
-  useEffect(() => {
-    if (!undoState) return;
-    if (secondsLeft <= 0) clearUndo();
-  }, [secondsLeft, undoState]);  
-
-  /* ---------------- Add flow helpers ---------------- */
-  const handleAiScan = () => showModal('ai-scan-method');
-
-  const handleManualEntry = () => {
-    if (addType === 'member') {
-      // 2. UPDATE "ADD MEMBER" FLOW TO USE THE MODAL
-      showModal('add-profile');
-    } else {
-      showModal('add-edit-vaccine', { mode: 'add', currentProfileId });
-    }
-  };
-
-  const handleScanSuccess = (extractedData) => {
-    navigateTo('ai-scan-review-extracted', { extractedData, addType, currentProfileId });
-    closeModal();
   };
 
   const handleEmailConfirmSuccess = () => {
-    showNotification({
+    showNotification?.({
       type: 'success',
       title: 'Success!',
       message: 'Email verified! You can now log in.',
     });
     closeModal();
-    navigateTo('auth-screen');
+    navigateTo?.('auth-screen');
   };
 
   const handleResendCode = async (email) => {
-    console.log(`Resending code to ${email}...`);
-    showNotification({
+    showNotification?.({
       type: 'info',
       title: 'Code Sent',
       message: `A new code has been sent to ${email}.`,
     });
   };
 
-  const handleFileSelectedForScan = (file) => {
-    navigateTo('ai-scan-review-extracted', { extractedData: {}, addType, currentProfileId });
+  // These are handled cleanly by App.jsx now, these are just fallbacks.
+  const handleScanSuccess = () => {
+    navigateTo?.('ai-scan-review-extracted');
     closeModal();
   };
+  const handleFileSelectedForScan = () => {
+    navigateTo?.('ai-scan-review-extracted');
+    closeModal();
+  };
+  const handleTakePhoto = () => showModal?.('camera-scan');
 
   const renderModalContent = () => {
+    if (!activeModal) return null;
+
     switch (activeModal) {
-      // 3. ADD CASE TO RENDER THE NEW MODAL
       case 'add-profile':
         return <AddProfileModal onClose={closeModal} onProfileCreated={handleProfileCreated} />;
       case 'edit-profile':
@@ -225,25 +194,28 @@ function ModalsController() {
             onDelete={handleDeleteVaccine}
           />
         );
-      case 'vaccine-share': // <-- NEW
+      case 'vaccine-share':
         return (
           <VaccineShareModal
-            profileId={currentProfileId || currentProfile?.profileId || currentProfile?.id}
+            profileId={currentProfileId || currentProfile?.profileId}
             vaccine={currentEditingVaccine}
             onClose={closeModal}
           />
         );
       case 'feedback-modal':
         return <FeedbackModal onClose={closeModal} />;
+
+      // CORRECTED AND SIMPLIFIED: This modal now acts as a simple, dumb component.
       case 'add-method':
         return (
           <AddMethodModal
             onClose={closeModal}
-            onAiScan={handleAiScan}
-            onManual={handleManualEntry}
-            title={`Add ${addType === 'record' ? 'Record' : 'Member'}`}
+            onAiScan={onAiScan}
+            onManual={onManual}
+            title={title}
           />
         );
+
       case 'ai-scan-method':
         return (
           <AiScanMethodModal
@@ -253,7 +225,7 @@ function ModalsController() {
           />
         );
       case 'camera-scan':
-        return <AIScanCameraScreen onClose={closeModal} onSuccess={handleScanSuccess} />;
+        return <CameraScanModal onClose={closeModal} onSuccess={handleScanSuccess} />;
       case 'confirm-email':
         return (
           <ConfirmEmailModal
@@ -270,8 +242,6 @@ function ModalsController() {
     }
   };
 
-  const handleTakePhoto = () => showModal('camera-scan');
-
   const modalsToKeepOpen = [
     'confirm-email',
     'forgot-password',
@@ -283,16 +253,13 @@ function ModalsController() {
 
   return (
     <>
-      {/* Global Undo toast (top-center, alarm style) */}
       <ModalUndoBar
-        open={!!undoState && secondsLeft > 0}
+        open={!!undoState}
         message="Record deleted."
         secondsLeft={secondsLeft}
         onUndo={handleUndo}
-        onClose={() => clearUndo()}
+        onClose={() => setUndoState(null)}
       />
-
-      {/* Modal overlay & content */}
       {activeModal && (
         <div className="modal-overlay" onClick={handleOverlayClick}>
           <div onClick={(e) => e.stopPropagation()}>{renderModalContent()}</div>

@@ -391,8 +391,16 @@ function SortDropdown({ value, onChange }) {
 
 function ProfileDetailScreen() {
   // --- State & Hooks ---
-  const { goBack, appState, showModal, navigateTo, allProfiles, setAllProfiles, showNotification } =
-    useContext(AppContext);
+  const {
+    goBack,
+    appState,
+    showModal,
+    navigateTo,
+    allProfiles,
+    setAllProfiles,
+    showNotification,
+    startScanning,
+  } = useContext(AppContext);
   const profile = allProfiles?.find((p) => p.profileId === appState.currentProfileId);
 
   const [isLoadingVaccines, setIsLoadingVaccines] = useState(false);
@@ -576,12 +584,7 @@ function ProfileDetailScreen() {
         });
       },
       onAiScan: () => {
-        // You can implement the AI Scan logic here in the future
-        showNotification({
-          type: 'info',
-          title: 'Coming Soon',
-          message: 'AI Scan feature is under development.',
-        });
+        startScanning('vaccine');
       },
     });
   };
