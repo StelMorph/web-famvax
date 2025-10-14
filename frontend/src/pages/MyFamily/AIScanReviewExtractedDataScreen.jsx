@@ -1,6 +1,5 @@
 // src/pages/MyFamily/AIScanReviewExtractedDataScreen.jsx
-
-import React, { useState, useEffect, useContext, useMemo } from 'react';
+import React, { useState, useEffect, useContext, useMemo, useRef } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
   faFileInvoice,
@@ -13,9 +12,9 @@ import {
 import { AppContext } from '../../contexts/AppContext.js';
 import DatePicker from '../../components/common/DatePicker.jsx';
 import api from '../../api/apiService.js';
-import { nationalities } from '../../data/nationalities.js';
 import '../../styles/pages/AIScanReviewExtractedDataScreen.css';
-// --- Field Configurations ---
+
+/* ---------------- Field configs ---------------- */
 const PROFILE_FIELDS = {
   required: ['name', 'dob', 'relationship'],
   optional: ['gender', 'bloodType', 'nationality', 'allergies', 'medicalConditions', 'notes'],
@@ -31,45 +30,69 @@ const PROFILE_FIELDS = {
     'notes',
   ],
 };
-
 const VACCINE_FIELDS = {
   required: ['vaccineName'],
-  optional: ['date', 'nextDueDate', 'vaccineType', 'dose', 'lot', 'clinic', 'notes', 'sideEffects'],
-  all: [
-    'vaccineName',
-    'date',
+  optional: [
+    'dateAdministered',
     'nextDueDate',
     'vaccineType',
     'dose',
-    'lot',
-    'clinic',
+    'lotNumber',
+    'administeredBy',
+    'notes',
+    'sideEffects',
+  ],
+  all: [
+    'vaccineName',
+    'dateAdministered',
+    'nextDueDate',
+    'vaccineType',
+    'dose',
+    'lotNumber',
+    'administeredBy',
     'notes',
     'sideEffects',
   ],
 };
+const FIELD_CONFIGS = { profile: PROFILE_FIELDS, vaccine: VACCINE_FIELDS };
 
-const FIELD_CONFIGS = {
-  profile: PROFILE_FIELDS,
-  vaccine: VACCINE_FIELDS,
-};
-
-// --- Options for Pickers ---
 const RELATIONSHIP_OPTIONS = ['Child', 'Self', 'Partner', 'Parent', 'Other'];
 const GENDER_OPTIONS = ['Female', 'Male', 'Other'];
 const BLOOD_TYPE_OPTIONS = ['O+', 'O-', 'A+', 'A-', 'B+', 'B-', 'AB+', 'AB-'];
 const VACCINE_TYPE_OPTIONS = ['Standard', 'Travel', 'Seasonal'];
 
 const formatLabel = (key) => {
-  if (key === 'dob') return 'Date Of Birth';
-  if (key === 'date') return 'Date Administered';
-  if (key === 'lot') return 'Lot Number';
-  if (key === 'clinic') return 'Administered By';
   const result = key.replace(/([A-Z])/g, ' $1');
   return result.charAt(0).toUpperCase() + result.slice(1);
 };
 
-function AIScanReviewExtractedDataScreen({ scannedData, recordType, onSave, onDiscard }) {
-  const { showNotification, appState, navigateTo, refreshUserData } = useContext(AppContext);
+/* ---------------- Component ---------------- */
+function AIScanReviewExtractedDataScreen({
+  scannedData,
+  recordType = 'vaccine',
+  onSave,
+  onDiscard,
+}) {
+  const ctx = useContext(AppContext) || {};
+  const {
+    appState,
+    navigateTo,
+    showNotification,
+    setNavigationGuard, // optional; still usable
+    setReviewDirty, // 🔒 global dirty flag to block nav centrally
+    fetchDetailedData,
+  } = ctx;
+
+  // one-time warning if provider didn’t expose the guard
+  const warned = useRef(false);
+  useEffect(() => {
+    if (!setNavigationGuard && !warned.current) {
+      console.warn(
+        '[AIReview] setNavigationGuard is not available from context. Central guard will still work via setReviewDirty.',
+      );
+      warned.current = true;
+    }
+  }, [setNavigationGuard]);
 
   const [formData, setFormData] = useState({});
   const [customFields, setCustomFields] = useState([]);
@@ -78,39 +101,51 @@ function AIScanReviewExtractedDataScreen({ scannedData, recordType, onSave, onDi
   const [otherValues, setOtherValues] = useState({});
 
   const config = FIELD_CONFIGS[recordType] || FIELD_CONFIGS.vaccine;
-  const dateFieldKeys = ['dob', 'date', 'nextDueDate'];
-  const textAreaKeys = ['notes', 'sideEffects', 'allergies', 'medicalConditions'];
 
+  /* -------- init form from scannedData -------- */
   useEffect(() => {
     const initialFormState = {};
-    config.all.forEach((fieldKey) => {
+    (config.all || []).forEach((fieldKey) => {
       initialFormState[fieldKey] = scannedData?.[fieldKey] || '';
     });
     setFormData(initialFormState);
+
     const initialCustomFields = (
       scannedData?.customFields ||
       scannedData?.customAttributes ||
       []
-    ).map((cf) => ({ ...cf, id: Math.random() }));
+    ).map((cf) => ({
+      ...cf,
+      id: Math.random(),
+    }));
     setCustomFields(initialCustomFields);
-    setInitialState({ formData: initialFormState, customFields: initialCustomFields });
-  }, [scannedData, recordType, config.all]);
 
+    setInitialState({ formData: initialFormState, customFields: initialCustomFields });
+
+    // when screen is loaded with fresh data, it's clean
+    if (setReviewDirty) setReviewDirty(false);
+  }, [scannedData, recordType, config.all, setReviewDirty]);
+
+  /* -------- dirty detection -------- */
   const isDirty = useMemo(() => {
     if (!initialState) return false;
-    const currentFormString = JSON.stringify(formData);
-    const initialFormString = JSON.stringify(initialState.formData);
-    const currentCustomString = JSON.stringify(customFields.map(({ id, ...rest }) => rest));
-    const initialCustomString = JSON.stringify(
-      initialState.customFields.map(({ id, ...rest }) => rest),
-    );
+    const curForm = JSON.stringify(formData);
+    const baseForm = JSON.stringify(initialState.formData);
+    const curCustom = JSON.stringify(customFields.map(({ id, ...rest }) => rest));
+    const baseCustom = JSON.stringify(initialState.customFields.map(({ id, ...rest }) => rest));
     return (
-      currentFormString !== initialFormString ||
-      currentCustomString !== initialCustomString ||
+      curForm !== baseForm ||
+      curCustom !== baseCustom ||
       Object.keys(otherValues).some((k) => otherValues[k])
     );
   }, [formData, customFields, initialState, otherValues]);
 
+  // 🔒 keep global flag synced with isDirty
+  useEffect(() => {
+    if (setReviewDirty) setReviewDirty(!!isDirty);
+  }, [isDirty, setReviewDirty]);
+
+  /* -------- browser/tab guard -------- */
   useEffect(() => {
     const handleBeforeUnload = (event) => {
       if (isDirty) {
@@ -119,140 +154,165 @@ function AIScanReviewExtractedDataScreen({ scannedData, recordType, onSave, onDi
       }
     };
     window.addEventListener('beforeunload', handleBeforeUnload);
-    return () => {
-      window.removeEventListener('beforeunload', handleBeforeUnload);
-    };
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
   }, [isDirty]);
 
+  /* -------- optional per-screen guard (kept, but not required now) -------- */
+  useEffect(() => {
+    const guard = (proceed /* fn */) => {
+      if (!isDirty) return;
+      if (showNotification) {
+        showNotification({
+          type: 'confirm',
+          title: 'Discard changes?',
+          message: 'You have unsaved edits. If you leave now, your changes will be lost.',
+          confirmText: 'Discard',
+          cancelText: 'Stay',
+          onConfirm: () => {
+            if (setNavigationGuard) setNavigationGuard(null);
+            if (setReviewDirty) setReviewDirty(false);
+            proceed();
+          },
+        });
+      }
+      return false;
+    };
+
+    if (isDirty) {
+      if (setNavigationGuard) setNavigationGuard(() => guard);
+    } else if (setNavigationGuard) {
+      setNavigationGuard(null);
+    }
+
+    return () => {
+      if (setNavigationGuard) setNavigationGuard(null);
+    };
+  }, [isDirty, setNavigationGuard, setReviewDirty, showNotification]);
+
+  /* -------- handlers -------- */
   const handleTextareaInput = (e) => {
     e.target.style.height = 'auto';
     e.target.style.height = `${e.target.scrollHeight}px`;
   };
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
-  };
-  const handleOtherInputChange = (fieldName, value) => {
-    setOtherValues((prev) => ({ ...prev, [fieldName]: value }));
-  };
-  const handleDateChange = (fieldName, dateValue) => {
-    setFormData((prev) => ({ ...prev, [fieldName]: dateValue }));
-  };
-  const handleAddCustomField = () => {
-    setCustomFields((prev) => [...prev, { id: Math.random(), label: '', value: '' }]);
-  };
+  const handleInputChange = (e) => setFormData((p) => ({ ...p, [e.target.name]: e.target.value }));
+  const handleOtherInputChange = (name, value) => setOtherValues((p) => ({ ...p, [name]: value }));
+  const handleDateChange = (name, value) => setFormData((p) => ({ ...p, [name]: value }));
+
+  const handleAddCustomField = () =>
+    setCustomFields((p) => [...p, { id: Math.random(), label: '', value: '' }]);
   const handleCustomFieldChange = (index, fieldName, value) => {
-    const updatedFields = [...customFields];
-    updatedFields[index][fieldName] = value;
-    setCustomFields(updatedFields);
+    const updated = [...customFields];
+    updated[index][fieldName] = value;
+    setCustomFields(updated);
   };
   const handleRemoveCustomField = (idToRemove) => {
-    showNotification({
-      type: 'confirm-destructive',
-      title: 'Delete Field?',
-      message: 'Are you sure?',
-      confirmText: 'Delete',
-      onConfirm: () => setCustomFields((prev) => prev.filter((field) => field.id !== idToRemove)),
-    });
+    if (showNotification) {
+      showNotification({
+        type: 'confirm',
+        title: 'Delete Field?',
+        message: 'Are you sure you want to delete this field?',
+        confirmText: 'Delete',
+        cancelText: 'Cancel',
+        onConfirm: () => setCustomFields((prev) => prev.filter((f) => f.id !== idToRemove)),
+      });
+    }
   };
+
   const handleDiscard = () => {
     if (!isDirty) {
-      onDiscard();
+      if (setReviewDirty) setReviewDirty(false);
+      if (onDiscard) onDiscard();
+      else if (navigateTo) navigateTo('my-family-screen');
       return;
     }
-    showNotification({
-      type: 'confirm',
-      title: 'Unsaved Changes',
-      message: 'Discard changes?',
-      confirmText: 'Discard',
-      onConfirm: onDiscard,
-    });
+    if (showNotification) {
+      showNotification({
+        type: 'confirm',
+        title: 'Unsaved Changes',
+        message: 'Discard changes?',
+        confirmText: 'Discard',
+        cancelText: 'Stay',
+        onConfirm: () => {
+          if (setNavigationGuard) setNavigationGuard(null);
+          if (setReviewDirty) setReviewDirty(false);
+          if (onDiscard) onDiscard();
+          else if (navigateTo) navigateTo('my-family-screen');
+        },
+      });
+    }
   };
 
   const handleSave = async () => {
-    if (recordType === 'profile' && (!formData.name || !formData.dob)) {
-      showNotification({
-        type: 'error',
-        title: 'Missing Info',
-        message: 'Please enter a Full Name and Date of Birth.',
-      });
-      return;
-    }
-    if (
-      recordType === 'vaccine' &&
-      (!formData.vaccineName || (!formData.date && !formData.nextDueDate))
-    ) {
-      showNotification({
-        type: 'error',
-        title: 'Missing Info',
-        message: 'Please provide a Vaccine Name and at least one date.',
-      });
-      return;
-    }
-
     setIsSaving(true);
-    const finalPayload = { ...formData };
-    for (const key in otherValues) {
-      if (formData[key] === 'Other' && otherValues[key]) {
-        finalPayload[key] = otherValues[key];
-      }
+    const final = { ...formData };
+    for (const k of Object.keys(otherValues)) {
+      if (formData[k] === 'Other' && otherValues[k]) final[k] = otherValues[k];
     }
-    const finalCustomFields = customFields
+    const finalCustom = customFields
       .filter((f) => f.label && f.value)
       .map(({ id, ...rest }) => rest);
-    if (recordType === 'profile') {
-      finalPayload.customAttributes = finalCustomFields;
-    } else {
-      finalPayload.customFields = finalCustomFields;
-    }
 
     try {
       if (recordType === 'profile') {
-        await api.createProfile(finalPayload);
-        showNotification({
-          type: 'success',
-          title: 'Profile Created',
-          message: `${finalPayload.name} has been added.`,
-        });
-        await refreshUserData();
-        navigateTo('my-family-screen');
+        final.customAttributes = finalCustom;
+        await api.createProfile(final);
+        if (showNotification) {
+          showNotification({
+            type: 'info',
+            title: 'Profile Created',
+            message: `${final.name} has been added.`,
+          });
+        }
+        if (fetchDetailedData) await fetchDetailedData();
+        if (setReviewDirty) setReviewDirty(false);
+        if (setNavigationGuard) setNavigationGuard(null);
+        if (onSave) onSave({ type: 'profile', data: final });
+        // ⬇️ Bypass guard on post-save navigation
+        if (navigateTo) navigateTo('my-family-screen', {}, { bypassGuard: true });
       } else {
-        const profileId = appState.currentProfileId;
+        final.customFields = finalCustom;
+        const profileId = appState?.currentProfileId;
         if (!profileId) throw new Error('No profile selected for this vaccine record.');
-
-        const vaccinePayload = {
-          vaccineName: finalPayload.vaccineName,
-          vaccineType: finalPayload.vaccineType,
-          dose: finalPayload.dose,
-          date: finalPayload.date,
-          nextDueDate: finalPayload.nextDueDate,
-          lot: finalPayload.lot,
-          clinic: finalPayload.clinic,
-          notes: finalPayload.notes,
-          sideEffects: finalPayload.sideEffects,
-          customFields: finalPayload.customFields,
-        };
-        await api.createVaccine(profileId, vaccinePayload);
-        showNotification({
-          type: 'success',
-          title: 'Vaccine Added',
-          message: `Record for ${finalPayload.vaccineName} has been saved.`,
-        });
-        navigateTo('profile-detail-screen', { currentProfileId: profileId });
+        await api.createVaccine(profileId, final);
+        if (showNotification) {
+          showNotification({
+            type: 'info',
+            title: 'Vaccine Added',
+            message: `Record for ${final.vaccineName} has been saved.`,
+          });
+        }
+        if (setReviewDirty) setReviewDirty(false);
+        if (setNavigationGuard) setNavigationGuard(null);
+        if (onSave) onSave({ type: 'vaccine', data: final, profileId });
+        // ⬇️ Bypass guard on post-save navigation
+        if (navigateTo)
+          navigateTo(
+            'profile-detail-screen',
+            { currentProfileId: profileId },
+            { bypassGuard: true },
+          );
       }
-    } catch (error) {
-      showNotification({
-        type: 'error',
-        title: 'Save Failed',
-        message: error.message || 'An unknown error occurred.',
-      });
+    } catch (e) {
+      if (showNotification) {
+        showNotification({
+          type: 'error',
+          title: 'Save Failed',
+          message: e?.message || 'An unknown error occurred.',
+        });
+      }
     } finally {
       setIsSaving(false);
     }
   };
 
+  /* -------- render helpers -------- */
   const renderFormField = (key) => {
-    const className = `form-group ${['administeredBy', 'notes', 'sideEffects', 'allergies', 'medicalConditions', 'clinic'].includes(key) ? 'full-width' : ''}`;
+    const className = `form-group ${
+      ['administeredBy', 'notes', 'sideEffects', 'allergies', 'medicalConditions'].includes(key)
+        ? 'full-width'
+        : ''
+    }`;
+
     let field = (
       <input
         type="text"
@@ -265,14 +325,9 @@ function AIScanReviewExtractedDataScreen({ scannedData, recordType, onSave, onDi
       />
     );
 
-    if (dateFieldKeys.includes(key)) {
-      field = (
-        <DatePicker
-          value={formData[key] || ''}
-          onChange={(dateValue) => handleDateChange(key, dateValue)}
-        />
-      );
-    } else if (textAreaKeys.includes(key)) {
+    if (['dateOfBirth', 'dob', 'dateAdministered', 'nextDueDate'].includes(key)) {
+      field = <DatePicker value={formData[key] || ''} onChange={(v) => handleDateChange(key, v)} />;
+    } else if (['notes', 'sideEffects', 'allergies', 'medicalConditions'].includes(key)) {
       field = (
         <textarea
           id={key}
@@ -367,22 +422,6 @@ function AIScanReviewExtractedDataScreen({ scannedData, recordType, onSave, onDi
           ))}
         </select>
       );
-    } else if (key === 'nationality') {
-      field = (
-        <select
-          name="nationality"
-          value={formData.nationality}
-          onChange={handleInputChange}
-          className="form-input"
-        >
-          <option value="">Select...</option>
-          {nationalities.map((n) => (
-            <option key={n.name} value={n.name}>
-              {n.name}
-            </option>
-          ))}
-        </select>
-      );
     }
 
     return (
@@ -396,6 +435,7 @@ function AIScanReviewExtractedDataScreen({ scannedData, recordType, onSave, onDi
     );
   };
 
+  /* -------- UI -------- */
   return (
     <div className="review-screen-container">
       <div className="review-content">
@@ -404,8 +444,11 @@ function AIScanReviewExtractedDataScreen({ scannedData, recordType, onSave, onDi
           <h2>Review Scanned {recordType === 'profile' ? 'Profile' : 'Vaccine'} Data</h2>
           <p>Review and correct the extracted information before saving.</p>
         </div>
-        <div className="review-form">{config.all.map((fieldKey) => renderFormField(fieldKey))}</div>
+
+        <div className="review-form">{(config.all || []).map((k) => renderFormField(k))}</div>
+
         <hr className="form-divider" />
+
         <div className="custom-fields-section">
           <h4>Custom Fields</h4>
           {customFields.map((field, index) => (
@@ -438,6 +481,7 @@ function AIScanReviewExtractedDataScreen({ scannedData, recordType, onSave, onDi
             <span>Add Custom Field</span>
           </button>
         </div>
+
         <div className="review-actions">
           <button className="btn btn-secondary" onClick={handleDiscard} disabled={isSaving}>
             <FontAwesomeIcon icon={faTrash} />
@@ -449,7 +493,7 @@ function AIScanReviewExtractedDataScreen({ scannedData, recordType, onSave, onDi
             ) : (
               <FontAwesomeIcon icon={faFloppyDisk} />
             )}
-            <span>{isSaving ? 'Saving...' : 'Save Record'}</span>
+            <span>Save</span>
           </button>
         </div>
       </div>

@@ -1,10 +1,11 @@
-// frontend/src/pages/MyFamily/MyFamilyScreen.jsx
+// src/pages/MyFamily/MyFamilyScreen.jsx
 import React, { useMemo, useContext } from 'react';
 import { AppContext } from '../../contexts/AppContext.js';
 import StatCard from '../../components/common/StatCard.jsx';
 import ProfileCard from '../../components/common/ProfileCard.jsx';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faPlus, faUsers, faCalendarAlt, faShieldVirus } from '@fortawesome/free-solid-svg-icons';
+import { useScanFlow } from '../../flows/scanFlow.js';
 
 const MyFamilyEmpty = ({ onAddProfile }) => (
   <div className="content-wrapper centered-content empty-state">
@@ -64,7 +65,9 @@ const MyFamilyPopulated = ({ profiles, stats, onAddProfile, onSelectProfile }) =
 );
 
 function MyFamilyScreen() {
-  const { navigateTo, allProfiles, showModal, startScanning } = useContext(AppContext);
+  const { navigateTo, allProfiles, showModal, showNotification, closeModal } =
+    useContext(AppContext);
+  const scan = useScanFlow({ showModal, closeModal, showNotification, navigateTo });
 
   const stats = useMemo(() => {
     if (!allProfiles) return { upcomingCount: 0, completedCount: 0 };
@@ -85,16 +88,17 @@ function MyFamilyScreen() {
   const handleSelectProfile = (profileId) => {
     navigateTo('profile-detail-screen', { currentProfileId: profileId });
   };
-
   const handleAddProfile = () => {
+    // Show the chooser first
     showModal('add-method', {
       title: 'Add Family Member',
       onManual: () => {
+        // open your existing manual form
         showModal('add-profile');
       },
       onAiScan: () => {
-        // This will now work because `startScanning` exists in the context
-        startScanning('profile');
+        // only start the orchestrator if user chooses AI
+        scan.start('profile');
       },
     });
   };

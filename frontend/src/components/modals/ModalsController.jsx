@@ -1,12 +1,14 @@
 // src/components/modals/ModalsController.jsx
 import React, { useContext, useMemo, useState, useEffect } from 'react';
 import { AppContext } from '../../contexts/AppContext.js';
+
 import EditProfileModal from './profiles/EditProfileModal.jsx';
 import ManageSharingModal from './profiles/ManageSharingModal.jsx';
 import FeedbackModal from './global/FeedbackModal.jsx';
 import AddMethodModal from './global/AddMethodModal.jsx';
 import AiScanMethodModal from './global/AiScanMethodModal.jsx';
 import CameraScanModal from './global/CameraScanModal.jsx';
+import ProcessingModal from './global/ProcessingModal.jsx';
 import ConfirmEmailModal from './auth/ConfirmEmailModal.jsx';
 import ForgotPasswordModal from './auth/ForgotPasswordModal.jsx';
 import AddEditVaccineModal from './vaccines/AddEditVaccineModal.jsx';
@@ -17,28 +19,36 @@ import api from '../../api/apiService.js';
 
 function ModalsController() {
   const context = useContext(AppContext);
-
-  // Destructure with fallbacks to prevent crashes if context is not yet available
   const { appState, navigateTo, showNotification, setAllProfiles, showModal } = context || {};
 
-  // Get all necessary properties from appState, with fallbacks
   const {
     activeModal,
-    // Generic props for the 'add-method' modal, passed from the calling screen
+
+    // Params merged onto appState by SHOW_MODAL (no `params` object)
     title,
     onManual,
     onAiScan,
-    // Other specific props for various modals
+
+    // Scan-flow callbacks
+    onTakePhoto,
+    onFileSelected,
+    onCaptureDataUrl,
+
+    // Other props various modals expect
     currentProfile,
     currentEditingVaccine,
     mode,
     emailToVerify,
     currentProfileId,
+
+    // ProcessingModal texts
+    message,
+    submessage,
   } = appState || {};
 
   const closeModal = () => showModal?.(null);
 
-  // --- State and Handlers for Undo Functionality ---
+  // ---------------- Undo State ----------------
   const [undoState, setUndoState] = useState(null);
   const [now, setNow] = useState(Date.now());
 
@@ -57,7 +67,7 @@ function ModalsController() {
     if (undoState && secondsLeft <= 0) setUndoState(null);
   }, [secondsLeft, undoState]);
 
-  // --- Handlers for Specific Modal Actions ---
+  // ------------- Handlers -------------
   const handleUpdateProfile = (updatedProfile) => {
     setAllProfiles?.((prev) =>
       prev.map((p) => (p.profileId === updatedProfile.profileId ? { ...p, ...updatedProfile } : p)),
@@ -66,19 +76,17 @@ function ModalsController() {
     closeModal();
   };
 
-  const handleProfileCreated = () => {
-    closeModal();
-  };
+  const handleProfileCreated = () => closeModal();
 
   const handleSaveVaccine = (savedRecord) => {
     setAllProfiles?.((curr) =>
       curr.map((p) => {
         if (p.profileId === currentProfileId) {
           const idx = p.vaccines?.findIndex((v) => v.vaccineId === savedRecord.vaccineId) ?? -1;
-          let newVaccines = idx > -1 ? [...p.vaccines] : [...(p.vaccines || [])];
-          if (idx > -1) newVaccines[idx] = savedRecord;
-          else newVaccines.push(savedRecord);
-          return { ...p, vaccines: newVaccines };
+          const list = Array.isArray(p.vaccines) ? [...p.vaccines] : [];
+          if (idx > -1) list[idx] = savedRecord;
+          else list.push(savedRecord);
+          return { ...p, vaccines: list };
         }
         return p;
       }),
@@ -127,7 +135,7 @@ function ModalsController() {
         );
       }
       showNotification?.({ type: 'success', message: 'Record restored.' });
-    } catch (e) {
+    } catch {
       showNotification?.({
         type: 'error',
         title: 'Undo failed',
@@ -156,23 +164,14 @@ function ModalsController() {
     });
   };
 
-  // These are handled cleanly by App.jsx now, these are just fallbacks.
-  const handleScanSuccess = () => {
-    navigateTo?.('ai-scan-review-extracted');
-    closeModal();
-  };
-  const handleFileSelectedForScan = () => {
-    navigateTo?.('ai-scan-review-extracted');
-    closeModal();
-  };
-  const handleTakePhoto = () => showModal?.('camera-scan');
-
+  // ------------- Render by modal id -------------
   const renderModalContent = () => {
     if (!activeModal) return null;
 
     switch (activeModal) {
       case 'add-profile':
         return <AddProfileModal onClose={closeModal} onProfileCreated={handleProfileCreated} />;
+
       case 'edit-profile':
         return (
           <EditProfileModal
@@ -181,8 +180,10 @@ function ModalsController() {
             onClose={closeModal}
           />
         );
+
       case 'manage-sharing':
         return <ManageSharingModal profile={currentProfile} onClose={closeModal} />;
+
       case 'add-edit-vaccine':
         return (
           <AddEditVaccineModal
@@ -194,6 +195,7 @@ function ModalsController() {
             onDelete={handleDeleteVaccine}
           />
         );
+
       case 'vaccine-share':
         return (
           <VaccineShareModal
@@ -202,10 +204,11 @@ function ModalsController() {
             onClose={closeModal}
           />
         );
+
       case 'feedback-modal':
         return <FeedbackModal onClose={closeModal} />;
 
-      // CORRECTED AND SIMPLIFIED: This modal now acts as a simple, dumb component.
+      // Manual vs AI chooser
       case 'add-method':
         return (
           <AddMethodModal
@@ -216,27 +219,37 @@ function ModalsController() {
           />
         );
 
+      // AI source picker (Take Photo / Upload File)
       case 'ai-scan-method':
         return (
           <AiScanMethodModal
-            onTakePhoto={handleTakePhoto}
-            onFileSelected={handleFileSelectedForScan}
             onClose={closeModal}
+            onTakePhoto={onTakePhoto}
+            onFileSelected={onFileSelected}
           />
         );
+
+      // Live camera capture (returns dataUrl)
       case 'camera-scan':
-        return <CameraScanModal onClose={closeModal} onSuccess={handleScanSuccess} />;
+        return <CameraScanModal onClose={closeModal} onCaptureDataUrl={onCaptureDataUrl} />;
+
+      // NEW: Blocking processing modal (no close)
+      case 'processing':
+        return <ProcessingModal title={title} message={message} submessage={submessage} />;
+
       case 'confirm-email':
         return (
           <ConfirmEmailModal
             email={emailToVerify}
-            onConfirm={handleEmailConfirmSuccess}
             onClose={closeModal}
+            onSuccess={handleEmailConfirmSuccess}
             onResend={handleResendCode}
           />
         );
+
       case 'forgot-password':
         return <ForgotPasswordModal onClose={closeModal} />;
+
       default:
         return null;
     }
@@ -248,6 +261,7 @@ function ModalsController() {
     'camera-scan',
     'add-edit-vaccine',
     'add-profile',
+    'processing', // <— block clicks
   ];
   const handleOverlayClick = modalsToKeepOpen.includes(activeModal) ? undefined : closeModal;
 
@@ -261,8 +275,22 @@ function ModalsController() {
         onClose={() => setUndoState(null)}
       />
       {activeModal && (
-        <div className="modal-overlay" onClick={handleOverlayClick}>
-          <div onClick={(e) => e.stopPropagation()}>{renderModalContent()}</div>
+        <div
+          className="modal-overlay"
+          onClick={handleOverlayClick}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(15,23,42,0.6)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 9999,
+          }}
+        >
+          <div className="modal-shell" onClick={(e) => e.stopPropagation()}>
+            {renderModalContent()}
+          </div>
         </div>
       )}
     </>

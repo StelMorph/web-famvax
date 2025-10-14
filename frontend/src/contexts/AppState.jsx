@@ -1,9 +1,10 @@
-// src/contexts/AppState.js
+// src/contexts/AppState.jsx
 import React, { useEffect, useMemo, useReducer, useRef } from 'react';
 import { AppContext } from './AppContext';
 import auth from '../api/authService';
 import api from '../api/apiService';
 
+/* ----------------------- Initial App State ----------------------- */
 const initialState = {
   currentUser: { isLoggedIn: false, userEmail: null, isPremium: false },
   isLoadingApp: true,
@@ -12,6 +13,10 @@ const initialState = {
   activeModal: null,
   currentProfileId: null,
 
+  // For NotificationManager
+  notification: null,
+
+  // Data blobs
   overview: null,
   profiles: null,
   devices: null,
@@ -19,16 +24,19 @@ const initialState = {
   receivedShares: null,
 
   areDetailsLoading: false,
+
+  // 🔒 Global "unsaved edits" flag for AI Review screen
+  reviewDirty: false,
 };
 
-// -------- PUBLIC / PROTECTED & TOKEN UTILS --------
+/* ----------------------- Auth gates ----------------------- */
 const PUBLIC_SCREENS = new Set(['auth-screen', 'signup-screen', 'forgot-password']);
 const PROTECTED_SCREENS = new Set([
   'my-family-screen',
-  'profile-details-screen',
-  'manage-devices-screen',
+  'profile-detail-screen',
   'settings-screen',
   'vaccine-records-screen',
+  'ai-scan-review-extracted',
 ]);
 
 function parseJwtExpOk(jwt) {
@@ -37,31 +45,34 @@ function parseJwtExpOk(jwt) {
   if (parts.length !== 3) return false;
   try {
     const payload = JSON.parse(atob(parts[1].replace(/-/g, '+').replace(/_/g, '/')));
-    if (typeof payload.exp !== 'number') return true; // permissive if no exp
+    if (typeof payload.exp !== 'number') return true;
     return Date.now() < payload.exp * 1000;
   } catch {
     return false;
   }
 }
-
 function hasValidTokenSync() {
   const idToken = localStorage.getItem('idToken');
   return parseJwtExpOk(idToken);
 }
-// --------------------------------------------------
 
+/* ----------------------- Reducer ----------------------- */
 function reducer(state, action) {
   switch (action.type) {
     case 'SET_LOADING_APP':
       return { ...state, isLoadingApp: action.payload };
+
     case 'LOGIN':
       return { ...state, currentUser: action.payload };
+
     case 'NAVIGATE':
       return {
         ...state,
         activeScreen: action.payload.screen,
         currentProfileId: action.payload?.params?.currentProfileId ?? state.currentProfileId,
+        ...(action.payload?.params || {}),
       };
+
     case 'SHOW_MODAL':
       return {
         ...state,
@@ -70,6 +81,13 @@ function reducer(state, action) {
       };
     case 'HIDE_MODAL':
       return { ...state, activeModal: null };
+
+    // NotificationManager state
+    case 'SHOW_NOTIFICATION':
+      return { ...state, notification: action.payload };
+    case 'HIDE_NOTIFICATION':
+      return { ...state, notification: null };
+
     case 'SET_DETAILS_LOADING':
       return { ...state, areDetailsLoading: action.payload };
     case 'SET_OVERVIEW':
@@ -82,6 +100,11 @@ function reducer(state, action) {
       return { ...state, subscription: action.payload };
     case 'SET_RECEIVED_SHARES':
       return { ...state, receivedShares: action.payload };
+
+    // 🔒 global dirty flag
+    case 'SET_REVIEW_DIRTY':
+      return { ...state, reviewDirty: !!action.payload };
+
     default:
       return state;
   }
@@ -96,63 +119,84 @@ function historyImpliesActive(historyArr) {
   return type.includes('renewal');
 }
 
+/* ----------------------- Provider ----------------------- */
 export const AppProvider = ({ children }) => {
   const [appState, dispatch] = useReducer(reducer, initialState);
 
-  // ---- Prefetch cache (unchanged) ----
-  const subscriptionPrefetchRef = useRef({
-    ready: false,
-    ts: 0,
-    subscription: null,
-    history: null,
-  });
-
-  const prefetchSubscriptionBundle = async () => {
-    const now = Date.now();
-    if (subscriptionPrefetchRef.current.ready && now - subscriptionPrefetchRef.current.ts < 60_000)
-      return;
-    try {
-      const history = await api.getSubscriptionHistory().catch(() => []);
-      let sub = null;
-      if (historyImpliesActive(history)) {
-        try {
-          sub = await api.getSubscription();
-        } catch (e) {
-          if (e?.status !== 404) throw e;
-          sub = null;
-        }
-      }
-      dispatch({ type: 'SET_SUBSCRIPTION', payload: sub ?? null });
-      subscriptionPrefetchRef.current = {
-        ready: true,
-        ts: now,
-        subscription: sub,
-        history: history || [],
-      };
-    } catch {
-      /* best effort */
-    }
+  /* ---- Optional per-screen guard API (still available) ---- */
+  const navGuardRef = useRef(null);
+  const setNavigationGuard = (fnOrNull) => {
+    navGuardRef.current = typeof fnOrNull === 'function' ? fnOrNull : null;
+  };
+  const clearNavigationGuard = () => {
+    navGuardRef.current = null;
   };
 
-  // -------------------- NAVIGATION (with strong auth guard) --------------------
-  const navigateTo = (screen, params) => {
-    // Block protected screens if not authenticated
+  // 🔒 Helper: If user is on AI review and it's dirty, show confirm before any nav
+  const maybeBlockLeavingAIReview = (proceed) => {
+    if (appState.activeScreen === 'ai-scan-review-extracted' && appState.reviewDirty) {
+      dispatch({
+        type: 'SHOW_NOTIFICATION',
+        payload: {
+          type: 'confirm',
+          title: 'Discard changes?',
+          message: 'You have unsaved edits. If you leave now, your changes will be lost.',
+          confirmText: 'Discard',
+          cancelText: 'Stay',
+          onConfirm: () => {
+            dispatch({ type: 'SET_REVIEW_DIRTY', payload: false });
+            // clear any per-screen guard if set
+            navGuardRef.current = null;
+            proceed();
+          },
+        },
+      });
+      return true; // handled (blocked for now)
+    }
+    return false; // not blocked
+  };
+
+  /* ----------------------- Navigation ----------------------- */
+  const navigateTo = (screen, params = {}, options = {}) => {
     if (PROTECTED_SCREENS.has(screen) && !hasValidTokenSync()) {
       dispatch({ type: 'NAVIGATE', payload: { screen: 'auth-screen' } });
-      localStorage.removeItem('activeScreen'); // kill stale target
+      localStorage.removeItem('activeScreen');
       return;
     }
 
-    dispatch({ type: 'NAVIGATE', payload: { screen, params } });
+    const proceed = () => {
+      dispatch({ type: 'NAVIGATE', payload: { screen, params, options } });
 
-    // Persist only non-public screens; ALWAYS clear for public screens
-    if (screen && !PUBLIC_SCREENS.has(screen)) {
-      localStorage.setItem('activeScreen', screen);
-    } else {
-      localStorage.removeItem('activeScreen');
+      if (screen && !PUBLIC_SCREENS.has(screen)) {
+        localStorage.setItem('activeScreen', screen);
+      } else {
+        localStorage.removeItem('activeScreen');
+      }
+    };
+
+    // 🔒 Global AI Review dirty check FIRST (highest priority)
+    if (maybeBlockLeavingAIReview(proceed)) return;
+
+    // Per-screen guard (optional, keeps working)
+    if (navGuardRef.current) {
+      const handled = navGuardRef.current(proceed, { type: 'navigateTo', screen, params });
+      if (handled === false || handled === true) return;
     }
 
-    if (screen === 'settings-screen') prefetchSubscriptionBundle();
+    proceed();
+  };
+
+  const goBack = () => {
+    const proceed = () => window.history.back();
+
+    // 🔒 Global AI Review dirty check FIRST
+    if (maybeBlockLeavingAIReview(proceed)) return;
+
+    if (navGuardRef.current) {
+      const handled = navGuardRef.current(proceed, { type: 'goBack' });
+      if (handled === false || handled === true) return;
+    }
+    proceed();
   };
 
   const showModal = (modalId, params) => {
@@ -160,6 +204,14 @@ export const AppProvider = ({ children }) => {
     dispatch({ type: 'SHOW_MODAL', payload: { modalId, params } });
   };
 
+  // NotificationManager helpers
+  const showNotification = (payload) => dispatch({ type: 'SHOW_NOTIFICATION', payload });
+  const hideNotification = () => dispatch({ type: 'HIDE_NOTIFICATION' });
+
+  // 🔒 Expose setter for the global dirty flag
+  const setReviewDirty = (val) => dispatch({ type: 'SET_REVIEW_DIRTY', payload: !!val });
+
+  /* ----------------------- Data fetch ----------------------- */
   const fetchDetailedData = async () => {
     if (appState.areDetailsLoading) return;
     dispatch({ type: 'SET_DETAILS_LOADING', payload: true });
@@ -185,41 +237,28 @@ export const AppProvider = ({ children }) => {
       if (overview !== null) dispatch({ type: 'SET_OVERVIEW', payload: overview });
       if (profiles !== null) dispatch({ type: 'SET_PROFILES', payload: profiles });
       if (devices !== null) dispatch({ type: 'SET_DEVICES', payload: devices });
-      dispatch({ type: 'SET_SUBSCRIPTION', payload: subscription });
       if (receivedShares !== null)
         dispatch({ type: 'SET_RECEIVED_SHARES', payload: receivedShares });
-
-      subscriptionPrefetchRef.current = {
-        ready: true,
-        ts: Date.now(),
-        subscription,
-        history: history || [],
-      };
+      dispatch({ type: 'SET_SUBSCRIPTION', payload: subscription });
     } finally {
       dispatch({ type: 'SET_DETAILS_LOADING', payload: false });
     }
   };
 
-  const refreshUserData = async () => {
-    await fetchDetailedData();
-  };
-
-  // --------------------------- STARTUP BOOT (align with guard) ----------------------------
+  /* --------------------------- Boot --------------------------- */
   useEffect(() => {
     (async () => {
       const last = localStorage.getItem('activeScreen') || 'my-family-screen';
       const authed = hasValidTokenSync() || Boolean(await auth.getIdToken(false));
 
       if (!authed) {
-        // Not authenticated: only allow public screens; also nuke stale activeScreen
         localStorage.removeItem('activeScreen');
         const initial = PUBLIC_SCREENS.has(last) ? last : 'auth-screen';
-        navigateTo(initial);
+        dispatch({ type: 'NAVIGATE', payload: { screen: initial } });
         dispatch({ type: 'SET_LOADING_APP', payload: false });
         return;
       }
 
-      // Authenticated bootstrap
       dispatch({
         type: 'LOGIN',
         payload: {
@@ -229,28 +268,36 @@ export const AppProvider = ({ children }) => {
         },
       });
 
-      navigateTo(last || 'my-family-screen');
-      await refreshUserData();
+      dispatch({ type: 'NAVIGATE', payload: { screen: last || 'my-family-screen' } });
+      await fetchDetailedData();
       dispatch({ type: 'SET_LOADING_APP', payload: false });
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // ---------------------- HARD ENFORCER (last line of defense) ----------------------
+  // Hard gate if token expires on a protected screen
   useEffect(() => {
     if (PROTECTED_SCREENS.has(appState.activeScreen) && !hasValidTokenSync()) {
       dispatch({ type: 'NAVIGATE', payload: { screen: 'auth-screen' } });
       localStorage.removeItem('activeScreen');
     }
   }, [appState.activeScreen]);
-  // ---------------------------------------------------------------------------------
 
+  /* ----------------------- Context value ----------------------- */
   const value = useMemo(
     () => ({
       appState,
+
+      // navigation
       navigateTo,
+      goBack,
+
+      // modals
       showModal,
-      showNotification: (opts) => console.log('[notify]', opts),
+
+      // notifications
+      showNotification,
+      hideNotification,
 
       // data
       allProfiles: appState.profiles,
@@ -278,15 +325,15 @@ export const AppProvider = ({ children }) => {
           payload: typeof v === 'function' ? v(appState.receivedShares) : v,
         }),
 
-      // helpers
       fetchDetailedData,
-      refreshUserData,
-      goBack: () => window.history.back(),
       currentUser: appState.currentUser,
 
-      // prefetch
-      subscriptionPrefetch: subscriptionPrefetchRef,
-      prefetchSubscriptionBundle,
+      // per-screen guard API still available
+      setNavigationGuard,
+      clearNavigationGuard,
+
+      // 🔒 global dirty flag setter
+      setReviewDirty,
     }),
     [appState],
   );
