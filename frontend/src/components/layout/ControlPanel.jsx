@@ -32,18 +32,25 @@ function ControlPanel() {
     return '';
   };
 
+  // Option 1: rely entirely on the global navigation guard (AppState/App.jsx)
+  // No local confirm dialogs here — just call navigateTo.
+  const navigateCentral = (targetScreen) => {
+    navigateTo(targetScreen);
+  };
+
   return (
     <div className="control-panel" id="control-panel">
       <button
         className={`control-panel-button ${getActiveClass('my-family')}`}
-        onClick={() => navigateTo('my-family-screen')}
+        onClick={() => navigateCentral('my-family-screen')}
       >
         <FontAwesomeIcon icon={faUsers} />
         <span className="control-panel-text">My Family</span>
       </button>
+
       <button
         className={`control-panel-button ${getActiveClass('settings')}`}
-        onClick={() => navigateTo('settings-screen')}
+        onClick={() => navigateCentral('settings-screen')}
       >
         <FontAwesomeIcon icon={faCog} />
         <span className="control-panel-text">Settings</span>

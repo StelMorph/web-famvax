@@ -4,28 +4,15 @@
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
     "lib": ["ES2022", "DOM"],
-
     "strict": true,
     "noImplicitAny": true,
-    "strictNullChecks": true,
-    "noImplicitThis": true,
-    "alwaysStrict": true,
-    "noImplicitReturns": true,
-
+    "skipLibCheck": true,
     "inlineSourceMap": true,
     "inlineSources": true,
-
-    "experimentalDecorators": true,
-    "strictPropertyInitialization": false,
-
     "rootDir": ".",
-
     "types": ["vitest/globals", "node", "aws-lambda"],
-    "isolatedModules": true,
-
-    "skipLibCheck": true,
-
-    "noEmit": true          // <— key change: don't write .js / .d.ts files
+    "noEmit": true
   },
-  "exclude": ["node_modules", "cdk.out", "vitest.config.*", "dist"]
+  "include": ["lambda-fns", "src", "test", "vitest.config.ts"],
+  "exclude": ["node_modules", "cdk.out", "dist"]
 }

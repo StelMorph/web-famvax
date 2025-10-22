@@ -1,6 +1,6 @@
 // src/api/apiService.js
 // Centralized API client: auth headers, request de-duplication, TTL cache.
-
+const OCR_API_BASE = (import.meta.env.VITE_OCR_API_URL || '').trim().replace(/\/+$/, '');
 const RAW_BASE = (import.meta.env.VITE_API_URL || '').trim();
 const API_BASE = RAW_BASE.replace(/\/+$/, '');
 
@@ -402,6 +402,34 @@ export function getProfileAuditLog(profileId, { force = false, ttlMs = 60_000 } 
 }
 
 /* =================================================================
+ *                       NEW: OCR / DOCUMENT SCANNING
+ * ================================================================= */
+/**
+ * Asks the backend for a secure, one-time URL to upload a file to.
+ * @param {string} contentType The MIME type of the file to be uploaded (e.g., 'image/jpeg').
+ * @returns {Promise<{url: string, key: string}>} The presigned URL and the S3 object key.
+ */
+export async function getUploadUrl(contentType) {
+  return fetchJson(`${API_BASE}/ocr/get-upload-url`, {
+    method: 'POST',
+    headers: authHeaders({ 'Content-Type': 'application/json' }),
+    body: JSON.stringify({ contentType }),
+  });
+}
+
+/**
+ * Tells the backend to process a file that has been uploaded to S3.
+ * @param {string} key The S3 object key returned from getUploadUrl.
+ * @returns {Promise<{extractedData: object}>} The key-value pairs extracted by Textract.
+ */
+export async function scanDocument(key) {
+  return fetchJson(`${API_BASE}/ocr/scan-document`, {
+    method: 'POST',
+    headers: authHeaders({ 'Content-Type': 'application/json' }),
+    body: JSON.stringify({ key }),
+  });
+}
+/* =================================================================
  *                           Default export
  * ================================================================= */
 const api = {
@@ -451,6 +479,10 @@ const api = {
 
   // Audit
   getProfileAuditLog,
+
+  // OCR / Document Scanning (NEW)
+  getUploadUrl,
+  scanDocument,
 };
 
 export default api;

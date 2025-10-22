@@ -1,232 +1,181 @@
-import React, { useState, useEffect, useRef, useContext } from 'react';
-import { AppContext } from '../../../contexts/AppContext.js';
+// src/components/modals/global/CameraScanModal.jsx
+import React, { useState, useEffect, useRef } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faTimes, faSpinner, faVideoSlash } from '@fortawesome/free-solid-svg-icons';
+import {
+  faTimes,
+  faSpinner,
+  faVideoSlash,
+  faCamera,
+  faRepeat,
+  faCheck,
+} from '@fortawesome/free-solid-svg-icons';
 import '../../../styles/components/modals.css';
 
-function CameraScanModal({ onClose, onSuccess }) {
-  const { appState } = useContext(AppContext);
-  const [permissionStatus, setPermissionStatus] = useState('pending'); // 'pending', 'granted', 'denied'
-  const [stream, setStream] = useState(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [capturedDataUrl, setCapturedDataUrl] = useState(null); // <-- STATE FOR PREVIEW
+function CameraScanModal({ onClose, onCaptureDataUrl }) {
+  const [permissionStatus, setPermissionStatus] = useState('pending'); // pending | granted | denied
+  const [isCapturing, setIsCapturing] = useState(false);
+  const [capturedDataUrl, setCapturedDataUrl] = useState(null);
   const [errorMsg, setErrorMsg] = useState('');
 
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
-  const currentStreamRef = useRef(null);
-  const fileRef = useRef(null);
+  const streamRef = useRef(null);
 
-  // --- 1. Start Camera and Handle Permissions ---
+  const stopStream = () => {
+    const s = streamRef.current;
+    if (s && s.getTracks) s.getTracks().forEach((t) => t.stop());
+    streamRef.current = null;
+    if (videoRef.current) videoRef.current.srcObject = null;
+  };
+
+  const startStream = async () => {
+    setErrorMsg('');
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { ideal: 'environment' } },
+        audio: false,
+      });
+      streamRef.current = stream;
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        await videoRef.current.play().catch(() => {});
+      }
+      setPermissionStatus('granted');
+    } catch {
+      setPermissionStatus('denied');
+      setErrorMsg('Camera permission denied or unavailable.');
+    }
+  };
+
   useEffect(() => {
-    let isMounted = true;
-    const startCamera = async () => {
-      // Stop any existing tracks before starting new ones
-      if (currentStreamRef.current) {
-        currentStreamRef.current.getTracks().forEach((track) => track.stop());
-      }
+    let mounted = true;
+    (async () => {
       try {
-        const mediaStream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: { ideal: 'environment' } },
-        });
-        if (!isMounted) return;
-        currentStreamRef.current = mediaStream;
-        setStream(mediaStream);
-        setPermissionStatus('granted');
-      } catch (err) {
-        console.error('Camera permission denied or unavailable:', err);
-        if (!isMounted) return;
-        setPermissionStatus('denied');
-        setErrorMsg('Please allow camera access, or upload a photo instead.');
+        if (navigator.permissions?.query) {
+          const res = await navigator.permissions.query({ name: 'camera' });
+          if (!mounted) return;
+          if (res.state === 'granted') {
+            setPermissionStatus('granted');
+            await startStream();
+          } else if (res.state === 'denied') {
+            setPermissionStatus('denied');
+          } else {
+            await startStream(); // prompt
+          }
+          res.onchange = () => setPermissionStatus(res.state === 'granted' ? 'granted' : res.state);
+        } else {
+          await startStream();
+        }
+      } catch {
+        await startStream();
       }
-    };
-
-    startCamera();
+    })();
 
     return () => {
-      isMounted = false;
-      if (currentStreamRef.current) {
-        currentStreamRef.current.getTracks().forEach((track) => track.stop());
-      }
+      mounted = false;
+      stopStream();
     };
   }, []);
 
-  // --- 2. Connect Stream to Video Element ---
-  useEffect(() => {
-    if (videoRef.current && stream) {
-      videoRef.current.srcObject = stream;
-    }
-  }, [stream]);
-
-  // --- 3. CORE LOGIC CHANGE: Capture now only creates a preview ---
-  const handleCapture = () => {
-    if (!videoRef.current || !canvasRef.current) return;
-    setErrorMsg('');
-
-    const video = videoRef.current;
-    const canvas = canvasRef.current;
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-
-    const ctx = canvas.getContext('2d');
-    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-    // This converts the image to a data URL and sets the state, triggering the UI to show the preview.
-    // It DOES NOT call onSuccess.
-    canvas.toBlob(
-      (blob) => {
-        if (!blob) {
-          setErrorMsg('Could not capture image. Please try again.');
-          return;
-        }
-        const reader = new FileReader();
-        reader.onloadend = () => {
-          setCapturedDataUrl(reader.result); // <-- THIS TRIGGERS THE PREVIEW RENDER
-        };
-        reader.readAsDataURL(blob);
-
-        if (videoRef.current) videoRef.current.pause(); // Pause video feed during preview
-      },
-      'image/jpeg',
-      0.85,
-    );
-  };
-
-  // --- 4. NEW: This function handles the actual submission from the preview screen ---
-  const handleUsePhoto = async () => {
-    if (!capturedDataUrl) return;
-    setIsSubmitting(true);
+  const handleCapture = async () => {
+    setIsCapturing(true);
     setErrorMsg('');
     try {
-      const response = await fetch(capturedDataUrl);
-      const blob = await response.blob();
-      const file = new File([blob], 'scan.jpg', { type: 'image/jpeg' });
+      const video = videoRef.current;
+      const canvas = canvasRef.current;
+      if (!video || !canvas) return;
 
-      const formData = new FormData();
-      formData.append('file', file);
+      const w = video.videoWidth || 1280;
+      const h = video.videoHeight || 720;
+      canvas.width = w;
+      canvas.height = h;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(video, 0, 0, w, h);
 
-      // --- SIMULATED BACKEND CALL ---
-      console.log(
-        'Uploading image to backend...',
-        file.name,
-        `${(file.size / 1024).toFixed(1)} KB`,
-      );
-      await new Promise((resolve) => setTimeout(resolve, 1500)); // Simulate network delay
-      const simulatedResult = { extractedData: { vendor: 'Simulated Vendor', total: 123.45 } };
-      // --- END SIMULATION ---
-
-      onSuccess(simulatedResult.extractedData); // <-- onSuccess is ONLY called here
-      onClose(); // Close modal on success
-    } catch (error) {
-      console.error('Failed to process image:', error);
-      setErrorMsg('There was an error scanning the document. Please try again.');
-      setIsSubmitting(false);
-    }
-  };
-
-  // --- 5. NEW: This function handles the retake action ---
-  const handleRetake = () => {
-    setCapturedDataUrl(null); // <-- This clears the preview, showing the live video again
-    setErrorMsg('');
-    if (videoRef.current) {
-      videoRef.current.play();
-    }
-  };
-
-  // --- Fallback Upload Logic (for denied permissions) ---
-  const openPicker = () => fileRef.current?.click();
-  const onFileChange = async (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    const formData = new FormData();
-    formData.append('file', file);
-    setIsSubmitting(true);
-    try {
-      console.log('Uploading selected file...');
-      await new Promise((resolve) => setTimeout(resolve, 1500));
-      const simulatedResult = { extractedData: { vendor: 'Uploaded Cafe', total: 50.0 } };
-      onSuccess(simulatedResult.extractedData);
-      onClose();
-    } catch (error) {
-      setErrorMsg('Upload failed. Please try again.');
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.92);
+      setCapturedDataUrl(dataUrl);
+    } catch (e) {
+      setErrorMsg(e?.message || 'Failed to capture image.');
     } finally {
-      setIsSubmitting(false);
+      setIsCapturing(false);
     }
   };
 
-  // --- RENDER LOGIC ---
+  const handleUsePhoto = () => {
+    if (capturedDataUrl && typeof onCaptureDataUrl === 'function') {
+      // Return the capture to the orchestrator
+      onCaptureDataUrl(capturedDataUrl);
+      stopStream();
+      onClose?.();
+    }
+  };
+
+  const handleRetake = () => {
+    setCapturedDataUrl(null);
+    setErrorMsg('');
+  };
+
+  const handleClose = () => {
+    stopStream();
+    onClose?.();
+  };
+
   return (
-    <div className="modal-content scanner-modal-content">
-      <div className="modal-header">
-        <h3>Scan Document</h3>
-        <button onClick={onClose} className="btn-icon modal-close" title="Close">
+    <div className="scanner-modal">
+      <div className="scanner-header">
+        <h2>Scan Document</h2>
+        <button className="icon-button" onClick={handleClose} aria-label="Close">
           <FontAwesomeIcon icon={faTimes} />
         </button>
       </div>
+
       <div className="scanner-body">
-        {permissionStatus === 'granted' ? (
-          // --- THIS IS THE NEW RENDER LOGIC ---
-          capturedDataUrl ? (
-            // --- A. SHOW PREVIEW IF A PHOTO HAS BEEN CAPTURED ---
-            <div className="scanner-preview">
-              <img src={capturedDataUrl} alt="Captured preview" className="scanner-preview-img" />
-              <div className="scanner-preview-actions">
-                <button className="btn-secondary" onClick={handleRetake} disabled={isSubmitting}>
-                  Retake
-                </button>
-                <button className="btn-primary" onClick={handleUsePhoto} disabled={isSubmitting}>
-                  {isSubmitting ? <FontAwesomeIcon icon={faSpinner} spin /> : 'Use Photo'}
-                </button>
-              </div>
-            </div>
-          ) : (
-            // --- B. SHOW LIVE CAMERA FEED IF NO PHOTO CAPTURED YET ---
-            <>
-              <video
-                ref={videoRef}
-                autoPlay
-                playsInline
-                muted
-                className="scanner-video-feed"
-              ></video>
-              <canvas ref={canvasRef} style={{ display: 'none' }}></canvas>
-            </>
-          )
-        ) : permissionStatus === 'pending' ? (
-          <div className="scanner-status">
-            <FontAwesomeIcon icon={faSpinner} spin /> Requesting Camera Access...
+        {permissionStatus === 'granted' && !capturedDataUrl && (
+          <div className="video-box">
+            <video ref={videoRef} playsInline muted />
+            <canvas ref={canvasRef} style={{ display: 'none' }} />
           </div>
-        ) : (
-          // --- C. SHOW UPLOAD FALLBACK IF PERMISSION DENIED ---
-          <div className="scanner-status error">
+        )}
+
+        {capturedDataUrl && (
+          <div className="preview-box">
+            <img src={capturedDataUrl} alt="Captured document" />
+          </div>
+        )}
+
+        {(permissionStatus === 'denied' || permissionStatus === 'prompt') && !capturedDataUrl && (
+          <div className="camera-denied">
             <FontAwesomeIcon icon={faVideoSlash} />
-            <h4>Camera Access Denied</h4>
-            <p>Allow camera in browser settings, or upload a photo instead.</p>
-            <input
-              ref={fileRef}
-              type="file"
-              accept="image/*,application/pdf"
-              capture="environment"
-              style={{ display: 'none' }}
-              onChange={onFileChange}
-            />
-            <button className="btn-primary" onClick={openPicker} disabled={isSubmitting}>
-              {isSubmitting ? <FontAwesomeIcon icon={faSpinner} spin /> : 'Upload photo/file'}
-            </button>
+            <p>Camera access is blocked or unavailable. Enable permissions and try again.</p>
+          </div>
+        )}
+
+        {isCapturing && (
+          <div className="scanner-overlay">
+            <FontAwesomeIcon className="spin" icon={faSpinner} />
+            <span>Capturing…</span>
           </div>
         )}
       </div>
 
-      {/* --- D. ONLY SHOW CAPTURE BUTTON WHEN IN LIVE VIEW --- */}
-      {permissionStatus === 'granted' && !capturedDataUrl && (
-        <div className="scanner-footer">
-          {errorMsg && <p className="scanner-error">{errorMsg}</p>}
-          <button className="btn-capture" onClick={handleCapture} disabled={isSubmitting}>
-            <div className="capture-inner-circle"></div>
+      {errorMsg && <p className="scanner-error-footer">{errorMsg}</p>}
+
+      <div className="scanner-footer">
+        {!capturedDataUrl ? (
+          <button className="btn btn-primary" onClick={handleCapture}>
+            <FontAwesomeIcon icon={faCamera} /> Capture
           </button>
-        </div>
-      )}
+        ) : (
+          <div className="scanner-actions">
+            <button className="btn btn-outline" onClick={handleRetake}>
+              <FontAwesomeIcon icon={faRepeat} /> Retake
+            </button>
+            <button className="btn btn-primary" onClick={handleUsePhoto}>
+              <FontAwesomeIcon icon={faCheck} /> Use Photo
+            </button>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

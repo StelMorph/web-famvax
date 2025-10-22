@@ -1,4 +1,4 @@
-// src/components/screens/ProfileDetailScreen.jsx
+// src/components/screens/ProfileDetailScreen.jsx (FULL, FINAL VERSION)
 
 import React, { useContext, useMemo, useState, useEffect, useRef } from 'react';
 import { AppContext } from '../../contexts/AppContext.js';
@@ -28,6 +28,7 @@ import {
 } from '@fortawesome/free-solid-svg-icons';
 import api from '../../api/apiService.js';
 
+import { useScanFlow } from '../../flows/scanFlow.js';
 // ========================================================================
 //  Helper Functions
 // ========================================================================
@@ -99,7 +100,6 @@ const cmpNum = (a, b, dir = 1) => {
 //  Child Components
 // ========================================================================
 
-/** Renders a single, formatted log entry for the ActivityLogModal. */
 function LogEntry({ log, currentUserId }) {
   const ICONS = {
     UPDATE_PROFILE: faPen,
@@ -152,7 +152,6 @@ function LogEntry({ log, currentUserId }) {
   );
 }
 
-/** A modal that displays a profile's full activity history. */
 function ActivityLogModal({ isOpen, onClose, profileId, profileName }) {
   const { appState } = useContext(AppContext);
   const [logs, setLogs] = useState([]);
@@ -218,10 +217,6 @@ function ActivityLogModal({ isOpen, onClose, profileId, profileName }) {
   );
 }
 
-/**
- * Renders a simple label-value pair for the profile details grid.
- * Refactored for readability.
- */
 function InfoItem({ label, value }) {
   return (
     <div className="info-item-grid">
@@ -231,10 +226,6 @@ function InfoItem({ label, value }) {
   );
 }
 
-/**
- * Renders a single vaccine record in the list.
- * Refactored for readability with clearer logic.
- */
 function VaccineListItem({ vaccine, type, onClick }) {
   const isCompleted = type === 'completed';
 
@@ -265,7 +256,6 @@ function VaccineListItem({ vaccine, type, onClick }) {
   );
 }
 
-/** A modal to confirm the permanent deletion of a profile. */
 function ConfirmDeleteModal({ open, profileName, onCancel, onConfirm }) {
   const [typed, setTyped] = useState('');
   useEffect(() => {
@@ -316,7 +306,6 @@ function ConfirmDeleteModal({ open, profileName, onCancel, onConfirm }) {
   );
 }
 
-/** A custom dropdown component for sorting vaccine records. */
 function SortDropdown({ value, onChange }) {
   const SORT_OPTIONS = [
     { value: Sort.UPCOMING, label: 'Upcoming' },
@@ -390,16 +379,15 @@ function SortDropdown({ value, onChange }) {
 // ========================================================================
 
 function ProfileDetailScreen() {
-  // --- State & Hooks ---
   const {
     goBack,
     appState,
     showModal,
+    closeModal,
     navigateTo,
     allProfiles,
     setAllProfiles,
     showNotification,
-    startScanning,
   } = useContext(AppContext);
   const profile = allProfiles?.find((p) => p.profileId === appState.currentProfileId);
 
@@ -411,7 +399,8 @@ function ProfileDetailScreen() {
   const [query, setQuery] = useState(initialParams.q);
   const [sort, setSort] = useState(initialParams.sort);
 
-  // Effect for fetching vaccine data for the current profile
+  const scan = useScanFlow({ showModal, closeModal, showNotification, navigateTo });
+
   useEffect(() => {
     const fetchVaccinesForProfile = async () => {
       if (profile && profile.vaccines === null) {
@@ -440,7 +429,6 @@ function ProfileDetailScreen() {
     fetchVaccinesForProfile();
   }, [profile, setAllProfiles, showNotification]);
 
-  // Effect for synchronizing URL search params with component state
   useEffect(() => {
     writeParams({ q: query.trim(), sort });
   }, [query, sort]);
@@ -455,7 +443,6 @@ function ProfileDetailScreen() {
     return () => window.removeEventListener('popstate', onPop);
   }, []);
 
-  // --- Memoized Calculations ---
   const { grouped, visibleGroups, totalsText } = useMemo(() => {
     const vaccines = Array.isArray(profile?.vaccines) ? profile.vaccines : [];
     const text = normalize(query);
@@ -500,7 +487,6 @@ function ProfileDetailScreen() {
   const isOwner = !profile?.isShared;
   const canEdit = isOwner || profile?.role === 'Editor';
 
-  // --- Event Handlers ---
   const handleVaccineSave = (savedRecord) => {
     setAllProfiles((prev) =>
       prev.map((p) => {
@@ -573,22 +559,6 @@ function ProfileDetailScreen() {
       onDelete: handleVaccineDelete,
     });
 
-  const handleAddRecord = () => {
-    showModal('add-method', {
-      title: 'Add Vaccination Record',
-      onManual: () => {
-        showModal('add-edit-vaccine', {
-          currentProfileId: profile.profileId,
-          mode: 'add',
-          onSave: handleVaccineSave,
-        });
-      },
-      onAiScan: () => {
-        startScanning('vaccine');
-      },
-    });
-  };
-
   const deleteProfile = async () => {
     await api.deleteProfile(profile.profileId);
     setAllProfiles((prev) =>
@@ -623,14 +593,21 @@ function ProfileDetailScreen() {
     });
   };
 
-  // --- Render Logic ---
-  if (!profile) {
-    return (
-      <div className="content-wrapper centered-content">
-        <FontAwesomeIcon icon={faSpinner} spin size="2x" />
-      </div>
-    );
-  }
+  const handleAddRecord = () => {
+    showModal('add-method', {
+      title: 'Add Vaccination Record',
+      onManual: () => {
+        showModal('add-edit-vaccine', {
+          currentProfileId: profile.profileId,
+          mode: 'add',
+          onSave: handleVaccineSave,
+        });
+      },
+      onAiScan: () => {
+        scan.start('vaccine');
+      },
+    });
+  };
 
   const renderVaccineList = () => {
     if (isLoadingVaccines || profile.vaccines === null) {
