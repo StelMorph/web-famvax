@@ -654,6 +654,16 @@ function ProfileDetailScreen() {
     );
   };
 
+  if (!profile) {
+    return (
+      <div className="screen active profile-detail-page">
+        <div className="content-wrapper centered-content">
+          <FontAwesomeIcon icon={faSpinner} spin size="2x" />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="screen active profile-detail-page">
       <nav className="simple-nav">
