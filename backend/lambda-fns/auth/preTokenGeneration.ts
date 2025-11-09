@@ -16,9 +16,13 @@ export const handler: PreTokenGenerationTriggerHandler = async (
       new QueryCommand({
         TableName: process.env.SUBSCRIPTIONS_TABLE_NAME!,
         KeyConditionExpression: 'userId = :u',
-        FilterExpression: '#status = :active',
+        FilterExpression: '#status = :active OR #status = :trialing',
         ExpressionAttributeNames: { '#status': 'status' },
-        ExpressionAttributeValues: { ':u': userId, ':active': 'active' },
+        ExpressionAttributeValues: {
+          ':u': userId,
+          ':active': 'active',
+          ':trialing': 'trialing',
+        },
         Limit: 1,
       }),
     );

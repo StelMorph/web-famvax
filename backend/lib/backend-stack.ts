@@ -2,7 +2,6 @@ import * as cdk from 'aws-cdk-lib';
 import { Construct } from 'constructs';
 import * as path from 'path';
 import * as iam from 'aws-cdk-lib/aws-iam';
-
 import * as cognito from 'aws-cdk-lib/aws-cognito';
 import * as dynamodb from 'aws-cdk-lib/aws-dynamodb';
 import { HttpApi, HttpMethod, CorsHttpMethod } from 'aws-cdk-lib/aws-apigatewayv2';
@@ -11,14 +10,20 @@ import { HttpLambdaIntegration } from 'aws-cdk-lib/aws-apigatewayv2-integrations
 import { NodejsFunction, OutputFormat } from 'aws-cdk-lib/aws-lambda-nodejs';
 import { Runtime } from 'aws-cdk-lib/aws-lambda';
 import { Duration, RemovalPolicy } from 'aws-cdk-lib';
-
 import { createLambdaFactory } from './lambda-baseline';
 
 /** helper to resolve lambda source files */
 const lf = (...p: string[]) => path.join(__dirname, '..', 'lambda-fns', ...p);
 
+export interface BackendStackProps extends cdk.StackProps {
+  ocrFunction: NodejsFunction;
+  getUploadUrlFn: NodejsFunction; // <-- ADD THIS LINE
+}
+
 export class BackendStack extends cdk.Stack {
-  constructor(scope: Construct, id: string, props?: cdk.StackProps) {
+  public readonly api: HttpApi;
+  public readonly webhookFunction: NodejsFunction;
+  constructor(scope: Construct, id: string, props: BackendStackProps) {
     super(scope, id, props);
 
     // =====================================================
@@ -101,9 +106,6 @@ export class BackendStack extends cdk.Stack {
       sortKey: { name: 'ts', type: dynamodb.AttributeType.NUMBER },
     });
 
-    // =====================================================
-    // NEW: table for vaccine single-record sharing (by token)
-    // =====================================================
     const vaccineShareLinksTable = new dynamodb.Table(this, 'VaccineShareLinksTable', {
       partitionKey: { name: 'token', type: dynamodb.AttributeType.STRING },
       billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
@@ -115,9 +117,6 @@ export class BackendStack extends cdk.Stack {
       partitionKey: { name: 'vaccineId', type: dynamodb.AttributeType.STRING },
     });
 
-    // =====================================================
-    // Cognito (existing)
-    // =====================================================
     const userPool = new cognito.UserPool(this, 'FamVaxUserPool', {
       selfSignUpEnabled: true,
       signInAliases: { email: true },
@@ -132,7 +131,6 @@ export class BackendStack extends cdk.Stack {
     });
     (userPoolClient.node.defaultChild as cognito.CfnUserPoolClient).enableTokenRevocation = true;
 
-    // Triggers
     const postConfirmationFn = new NodejsFunction(this, 'PostConfirmationHandler', {
       entry: lf('auth/postConfirmation.ts'),
       runtime: Runtime.NODEJS_18_X,
@@ -171,9 +169,6 @@ export class BackendStack extends cdk.Stack {
     userPool.addTrigger(cognito.UserPoolOperation.PRE_SIGN_UP, preSignUpFn);
     userPool.addTrigger(cognito.UserPoolOperation.PRE_AUTHENTICATION, preAuthenticationFn);
 
-    // =====================================================
-    // Lambda factory & common env
-    // =====================================================
     const makeFn = createLambdaFactory(this, idempotencyTable.tableName);
 
     const commonEnv = {
@@ -190,24 +185,16 @@ export class BackendStack extends cdk.Stack {
       DEVICE_LIMIT_FREE: process.env.DEVICE_LIMIT_FREE || '1',
     };
 
-    // =====================================================
-    // App Lambdas (existing)
-    // =====================================================
-    // profiles
     const listProfilesFn = makeFn('ListProfilesFn', 'profiles/list.ts', commonEnv);
     const createProfileFn = makeFn('CreateProfileFn', 'profiles/create.ts', commonEnv);
     const getProfileFn = makeFn('GetProfileFn', 'profiles/get.ts', commonEnv);
     const updateProfileFn = makeFn('UpdateProfileFn', 'profiles/update.ts', commonEnv);
     const deleteProfileFn = makeFn('DeleteProfileFn', 'profiles/delete.ts', commonEnv);
-
-    // vaccines
     const listVaccinesFn = makeFn('ListVaccinesFn', 'vaccines/list.ts', commonEnv);
     const createVaccineFn = makeFn('CreateVaccineFn', 'vaccines/create.ts', commonEnv);
     const updateVaccineFn = makeFn('UpdateVaccineFn', 'vaccines/update.ts', commonEnv);
     const deleteVaccineFn = makeFn('DeleteVaccineFn', 'vaccines/delete.ts', commonEnv);
     const restoreVaccineFn = makeFn('RestoreVaccineFn', 'vaccines/restore.ts', commonEnv);
-
-    // shares (profile)
     const createOrUpdateShareFn = makeFn(
       'CreateOrUpdateShareFn',
       'shares/createOrUpdate.ts',
@@ -228,8 +215,6 @@ export class BackendStack extends cdk.Stack {
     );
     const acceptShareFn = makeFn('AcceptShareFn', 'shares/accept.ts', commonEnv);
     const deleteShareFn = makeFn('DeleteShareFn', 'shares/delete.ts', commonEnv);
-
-    // subscriptions
     const createSubscriptionFn = makeFn(
       'CreateSubscriptionFn',
       'subscriptions/create.ts',
@@ -251,21 +236,12 @@ export class BackendStack extends cdk.Stack {
       'subscriptions/updateStatus.ts',
       commonEnv,
     );
-
-    // devices
+    this.webhookFunction = updateSubscriptionStatusFn;
     const listDevicesFn = makeFn('ListDevicesFn', 'devices/list.ts', commonEnv);
     const revokeDeviceFn = makeFn('RevokeDeviceFn', 'devices/revoke.ts', commonEnv);
-
-    // auth finisher + overview
     const completeLoginFn = makeFn('CompleteLoginFn', 'auth/complete-login.ts', commonEnv);
     const getOverviewFn = makeFn('GetOverviewFn', 'user/overview.ts', commonEnv);
-
-    // FIX: Add a new Lambda function for fetching the audit log.
     const listAuditEventsFn = makeFn('ListAuditEventsFn', 'audit/listByProfile.ts', commonEnv);
-
-    // =====================================================
-    // NEW: Vaccine single-record share Lambdas
-    // =====================================================
     const createVaccineShareFn = makeFn(
       'CreateVaccineShareFn',
       'vaccine-share/create.ts',
@@ -281,8 +257,6 @@ export class BackendStack extends cdk.Stack {
       'vaccine-share/getPublic.ts',
       commonEnv,
     );
-
-    // SPECIAL: PDF lambda — custom NodejsFunction with bundling so .ttf can be imported
     const getPublicVaccinePdfFn = new NodejsFunction(this, 'GetPublicVaccinePdfFn', {
       entry: lf('vaccine-share/getPdf.ts'),
       runtime: Runtime.NODEJS_18_X,
@@ -295,16 +269,10 @@ export class BackendStack extends cdk.Stack {
       bundling: {
         minify: true,
         target: 'node18',
-        // IMPORTANT: make the bundle CommonJS so pdfkit’s CJS requires work at runtime
         format: OutputFormat.CJS,
-        // Inline .ttf as data URL so pdfkit/fontkit can load the font file
         loader: { '.ttf': 'dataurl' },
-        // If needed, you could externalize and ship via a layer instead:
-        // externalModules: ["@pdfkit/fontkit"],
       },
     });
-
-    // quick public health-check + catch-all (to keep CORS OK on typos)
     const publicPingFn = new NodejsFunction(this, 'PublicPingFn', {
       entry: lf('vaccine-share/ping.ts'),
       runtime: Runtime.NODEJS_18_X,
@@ -316,9 +284,6 @@ export class BackendStack extends cdk.Stack {
       environment: {},
     });
 
-    // =====================================================
-    // Grants
-    // =====================================================
     const grantRW = (fn: NodejsFunction) => {
       profilesTable.grantReadWriteData(fn);
       vaccinesTable.grantReadWriteData(fn);
@@ -355,33 +320,24 @@ export class BackendStack extends cdk.Stack {
       getOverviewFn,
       createVaccineShareFn,
       revokeVaccineShareFn,
-      listAuditEventsFn, // Add new function to the list
+      listAuditEventsFn,
     ].forEach(grantRW);
 
-    // Grant specific read access to the audit function for the new GSI
     auditEventsTable.grantReadData(listAuditEventsFn);
-
-    // precise read grants for public viewers
     vaccineShareLinksTable.grantReadData(getPublicVaccineFn);
     vaccinesTable.grantReadData(getPublicVaccineFn);
     profilesTable.grantReadData(getPublicVaccineFn);
-
-    // also for the PDF endpoint + RW for create/revoke
     vaccineShareLinksTable.grantReadData(getPublicVaccinePdfFn);
     vaccinesTable.grantReadData(getPublicVaccinePdfFn);
     profilesTable.grantReadData(getPublicVaccinePdfFn);
-
     vaccineShareLinksTable.grantReadWriteData(createVaccineShareFn);
     vaccineShareLinksTable.grantReadWriteData(revokeVaccineShareFn);
 
-    // =====================================================
-    // Auth API (Cognito authorizer)
-    // =====================================================
     const authorizer = new HttpUserPoolAuthorizer('UserPoolAuth', userPool, {
       userPoolClients: [userPoolClient],
     });
 
-    const api = new HttpApi(this, 'FamVaxHttpApi', {
+    this.api = new HttpApi(this, 'FamVaxHttpApi', {
       corsPreflight: {
         allowHeaders: ['*'],
         allowMethods: [CorsHttpMethod.ANY],
@@ -393,162 +349,152 @@ export class BackendStack extends cdk.Stack {
 
     const integ = (id: string, fn: NodejsFunction) => new HttpLambdaIntegration(id, fn);
 
-    // overview
-    api.addRoutes({
+    this.api.addRoutes({
       path: '/me/overview',
       methods: [HttpMethod.GET],
       integration: integ('GetOverviewInt', getOverviewFn),
     });
-
-    // profiles
-    api.addRoutes({
+    this.api.addRoutes({
       path: '/profiles',
       methods: [HttpMethod.GET],
       integration: integ('ListProfilesInt', listProfilesFn),
     });
-    api.addRoutes({
+    this.api.addRoutes({
       path: '/profiles',
       methods: [HttpMethod.POST],
       integration: integ('CreateProfileInt', createProfileFn),
     });
-    api.addRoutes({
+    this.api.addRoutes({
       path: '/profiles/{profileId}',
       methods: [HttpMethod.GET],
       integration: integ('GetProfileInt', getProfileFn),
     });
-    api.addRoutes({
+    this.api.addRoutes({
       path: '/profiles/{profileId}',
       methods: [HttpMethod.PUT],
       integration: integ('UpdateProfileInt', updateProfileFn),
     });
-    api.addRoutes({
+    this.api.addRoutes({
       path: '/profiles/{profileId}',
       methods: [HttpMethod.DELETE],
       integration: integ('DeleteProfileInt', deleteProfileFn),
     });
-
-    // FIX: Add the new API route for the audit log.
-    api.addRoutes({
+    this.api.addRoutes({
       path: '/profiles/{profileId}/audit-log',
       methods: [HttpMethod.GET],
       integration: integ('ListAuditEventsInt', listAuditEventsFn),
     });
-
-    // vaccines
-    api.addRoutes({
+    this.api.addRoutes({
       path: '/profiles/{profileId}/vaccines',
       methods: [HttpMethod.GET],
       integration: integ('ListVaccinesInt', listVaccinesFn),
     });
-    api.addRoutes({
+    this.api.addRoutes({
       path: '/profiles/{profileId}/vaccines',
       methods: [HttpMethod.POST],
       integration: integ('CreateVaccineInt', createVaccineFn),
     });
-    api.addRoutes({
+    this.api.addRoutes({
       path: '/profiles/{profileId}/vaccines/{vaccineId}',
       methods: [HttpMethod.PUT],
       integration: integ('UpdateVaccineInt', updateVaccineFn),
     });
-    api.addRoutes({
+    this.api.addRoutes({
       path: '/profiles/{profileId}/vaccines/{vaccineId}',
       methods: [HttpMethod.DELETE],
       integration: integ('DeleteVaccineInt', deleteVaccineFn),
     });
-    api.addRoutes({
+    this.api.addRoutes({
       path: '/profiles/{profileId}/vaccines/{vaccineId}/restore',
       methods: [HttpMethod.POST],
       integration: integ('RestoreVaccineInt', restoreVaccineFn),
     });
-
-    // shares
-    api.addRoutes({
+    this.api.addRoutes({
       path: '/profiles/{profileId}/shares',
       methods: [HttpMethod.GET],
       integration: integ('ListSharesInt', listProfileSharesFn),
     });
-    api.addRoutes({
+    this.api.addRoutes({
       path: '/profiles/{profileId}/share',
       methods: [HttpMethod.POST],
       integration: integ('CreateShareInt', createOrUpdateShareFn),
     });
-    api.addRoutes({
+    this.api.addRoutes({
       path: '/shares/received',
       methods: [HttpMethod.GET],
       integration: integ('GetReceivedInt', listReceivedSharesFn),
     });
-    api.addRoutes({
+    this.api.addRoutes({
       path: '/shares/{shareId}/accept',
       methods: [HttpMethod.PUT],
       integration: integ('AcceptShareInt', acceptShareFn),
     });
-    api.addRoutes({
+    this.api.addRoutes({
       path: '/shares/{shareId}',
       methods: [HttpMethod.DELETE],
       integration: integ('DeleteShareInt', deleteShareFn),
     });
-
-    // subscriptions
-    api.addRoutes({
+    this.api.addRoutes({
       path: '/subscription',
       methods: [HttpMethod.POST],
       integration: integ('CreateSubscriptionInt', createSubscriptionFn),
     });
-    api.addRoutes({
+    this.api.addRoutes({
       path: '/subscription',
       methods: [HttpMethod.GET],
       integration: integ('GetSubscriptionInt', getSubscriptionFn),
     });
-    api.addRoutes({
+    this.api.addRoutes({
       path: '/subscription/history',
       methods: [HttpMethod.GET],
       integration: integ('GetSubscriptionHistoryInt', getSubscriptionHistoryFn),
     });
-    api.addRoutes({
+    this.api.addRoutes({
       path: '/subscription',
       methods: [HttpMethod.DELETE],
       integration: integ('CancelSubscriptionInt', cancelSubscriptionFn),
     });
-    api.addRoutes({
+    this.api.addRoutes({
       path: '/subscription',
       methods: [HttpMethod.PATCH],
       integration: integ('UpdateSubscriptionStatusInt', updateSubscriptionStatusFn),
     });
-
-    // devices
-    api.addRoutes({
+    this.api.addRoutes({
       path: '/devices',
       methods: [HttpMethod.GET],
       integration: integ('ListDevicesInt', listDevicesFn),
     });
-    api.addRoutes({
+    this.api.addRoutes({
       path: '/devices/{deviceId}',
       methods: [HttpMethod.DELETE],
       integration: integ('RevokeDeviceInt', revokeDeviceFn),
     });
-
-    // auth finisher
-    api.addRoutes({
+    this.api.addRoutes({
       path: '/auth/complete-login',
       methods: [HttpMethod.POST],
       integration: integ('CompleteLoginInt', completeLoginFn),
     });
-
-    // NEW (AUTH): create/revoke single-vaccine share link
-    api.addRoutes({
+    this.api.addRoutes({
       path: '/profiles/{profileId}/vaccines/{vaccineId}/share',
       methods: [HttpMethod.POST],
       integration: integ('CreateVaccineShareInt', createVaccineShareFn),
     });
-    api.addRoutes({
+    this.api.addRoutes({
       path: '/vaccine-share/{token}',
       methods: [HttpMethod.DELETE],
       integration: integ('RevokeVaccineShareInt', revokeVaccineShareFn),
     });
+    this.api.addRoutes({
+      path: '/ocr/get-upload-url',
+      methods: [HttpMethod.POST],
+      integration: integ('GetUploadUrlInt', props.getUploadUrlFn),
+    });
+    this.api.addRoutes({
+      path: '/ocr/scan-document',
+      methods: [HttpMethod.POST],
+      integration: integ('ScanDocumentInt', props.ocrFunction),
+    });
 
-    // =====================================================
-    // Public API (no authorizer)
-    // =====================================================
     const publicApi = new HttpApi(this, 'FamVaxPublicHttpApi', {
       corsPreflight: {
         allowHeaders: ['*'],
@@ -560,14 +506,11 @@ export class BackendStack extends cdk.Stack {
 
     const publicInteg = (id: string, fn: NodejsFunction) => new HttpLambdaIntegration(id, fn);
 
-    // health check
     publicApi.addRoutes({
       path: '/public/ping',
       methods: [HttpMethod.GET],
       integration: publicInteg('PublicPingInt', publicPingFn),
     });
-
-    // public viewer JSON + PDF
     publicApi.addRoutes({
       path: '/public/vaccine/{token}',
       methods: [HttpMethod.GET],
@@ -578,18 +521,13 @@ export class BackendStack extends cdk.Stack {
       methods: [HttpMethod.GET],
       integration: publicInteg('GetPublicVaccinePdfInt', getPublicVaccinePdfFn),
     });
-
-    // catch-all for other /public/* to ensure CORS even on typos
     publicApi.addRoutes({
       path: '/{proxy+}',
       methods: [HttpMethod.ANY],
       integration: publicInteg('PublicNotFoundInt', publicNotFoundFn),
     });
 
-    // =====================================================
-    // Outputs
-    // =====================================================
-    new cdk.CfnOutput(this, 'ApiUrl', { value: api.url! });
+    new cdk.CfnOutput(this, 'ApiUrl', { value: this.api.url! });
     new cdk.CfnOutput(this, 'PublicApiUrl', { value: publicApi.url! });
     new cdk.CfnOutput(this, 'UserPoolId', { value: userPool.userPoolId });
     new cdk.CfnOutput(this, 'UserPoolClientId', {
