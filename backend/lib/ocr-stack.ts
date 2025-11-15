@@ -9,7 +9,7 @@ import { Duration } from 'aws-cdk-lib';
 import * as s3 from 'aws-cdk-lib/aws-s3';
 import * as iam from 'aws-cdk-lib/aws-iam';
 
-const lf = (...p: string[]) => path.join(__dirname, '..', 'lambda-fns', ...p);
+const lf = (...p: string[]) => path.join(__dirname, '..', 'src', 'handlers', ...p);
 
 export class OcrStack extends cdk.Stack {
   public readonly ocrFunction: NodejsFunction;

@@ -13,7 +13,7 @@ import { Duration, RemovalPolicy } from 'aws-cdk-lib';
 import { createLambdaFactory } from './lambda-baseline';
 
 /** helper to resolve lambda source files */
-const lf = (...p: string[]) => path.join(__dirname, '..', 'lambda-fns', ...p);
+const lf = (...p: string[]) => path.join(__dirname, '..', 'src', ...p);
 
 export interface BackendStackProps extends cdk.StackProps {
   ocrFunction: NodejsFunction;
@@ -117,6 +117,17 @@ export class BackendStack extends cdk.Stack {
       partitionKey: { name: 'vaccineId', type: dynamodb.AttributeType.STRING },
     });
 
+    const uploadBucket = new cdk.aws_s3.Bucket(this, 'UploadBucket', {
+      removalPolicy: RemovalPolicy.DESTROY,
+      cors: [
+        {
+          allowedMethods: [cdk.aws_s3.HttpMethods.POST],
+          allowedOrigins: ['*'],
+          allowedHeaders: ['*'],
+        },
+      ],
+    });
+
     const userPool = new cognito.UserPool(this, 'FamVaxUserPool', {
       selfSignUpEnabled: true,
       signInAliases: { email: true },
@@ -132,7 +143,7 @@ export class BackendStack extends cdk.Stack {
     (userPoolClient.node.defaultChild as cognito.CfnUserPoolClient).enableTokenRevocation = true;
 
     const postConfirmationFn = new NodejsFunction(this, 'PostConfirmationHandler', {
-      entry: lf('auth/postConfirmation.ts'),
+      entry: path.join(__dirname, '..', 'src', 'handlers', 'auth', 'postConfirmation.ts'),
       runtime: Runtime.NODEJS_18_X,
       environment: {
         USERS_TABLE_NAME: usersTable.tableName,
@@ -141,16 +152,16 @@ export class BackendStack extends cdk.Stack {
       },
     });
     const preTokenGenerationFn = new NodejsFunction(this, 'PreTokenGenerationHandler', {
-      entry: lf('auth/preTokenGeneration.ts'),
+      entry: path.join(__dirname, '..', 'src', 'handlers', 'auth', 'preTokenGeneration.ts'),
       runtime: Runtime.NODEJS_18_X,
       environment: { SUBSCRIPTIONS_TABLE_NAME: subscriptionsTable.tableName },
     });
     const preSignUpFn = new NodejsFunction(this, 'PreSignUpHandler', {
-      entry: lf('auth/preSignUp.ts'),
+      entry: path.join(__dirname, '..', 'src', 'handlers', 'auth', 'preSignUp.ts'),
       runtime: Runtime.NODEJS_18_X,
     });
     const preAuthenticationFn = new NodejsFunction(this, 'PreAuthenticationHandler', {
-      entry: lf('auth/preAuthentication.ts'),
+      entry: path.join(__dirname, '..', 'src', 'handlers', 'auth', 'preAuthentication.ts'),
       runtime: Runtime.NODEJS_18_X,
       environment: {
         DEVICES_TABLE_NAME: devicesTable.tableName,
@@ -258,7 +269,7 @@ export class BackendStack extends cdk.Stack {
       commonEnv,
     );
     const getPublicVaccinePdfFn = new NodejsFunction(this, 'GetPublicVaccinePdfFn', {
-      entry: lf('vaccine-share/getPdf.ts'),
+      entry: path.join(__dirname, '..', 'src', 'handlers', 'vaccine-share', 'getPdf.ts'),
       runtime: Runtime.NODEJS_18_X,
       memorySize: 512,
       timeout: Duration.seconds(20),
@@ -274,14 +285,19 @@ export class BackendStack extends cdk.Stack {
       },
     });
     const publicPingFn = new NodejsFunction(this, 'PublicPingFn', {
-      entry: lf('vaccine-share/ping.ts'),
+      entry: path.join(__dirname, '..', 'src', 'handlers', 'vaccine-share', 'ping.ts'),
       runtime: Runtime.NODEJS_18_X,
       environment: {},
     });
     const publicNotFoundFn = new NodejsFunction(this, 'PublicNotFoundFn', {
-      entry: lf('vaccine-share/notFound.ts'),
+      entry: path.join(__dirname, '..', 'src', 'handlers', 'vaccine-share', 'notFound.ts'),
       runtime: Runtime.NODEJS_18_X,
       environment: {},
+    });
+
+    const uploadPdfFn = makeFn('UploadPdfFn', 'upload-pdf.ts', {
+      ...commonEnv,
+      UPLOAD_BUCKET_NAME: uploadBucket.bucketName,
     });
 
     const grantRW = (fn: NodejsFunction) => {
@@ -321,7 +337,10 @@ export class BackendStack extends cdk.Stack {
       createVaccineShareFn,
       revokeVaccineShareFn,
       listAuditEventsFn,
+      uploadPdfFn,
     ].forEach(grantRW);
+
+    uploadBucket.grantWrite(uploadPdfFn);
 
     auditEventsTable.grantReadData(listAuditEventsFn);
     vaccineShareLinksTable.grantReadData(getPublicVaccineFn);
@@ -493,6 +512,12 @@ export class BackendStack extends cdk.Stack {
       path: '/ocr/scan-document',
       methods: [HttpMethod.POST],
       integration: integ('ScanDocumentInt', props.ocrFunction),
+    });
+
+    this.api.addRoutes({
+      path: '/upload-pdf',
+      methods: [HttpMethod.POST],
+      integration: integ('UploadPdfInt', uploadPdfFn),
     });
 
     const publicApi = new HttpApi(this, 'FamVaxPublicHttpApi', {

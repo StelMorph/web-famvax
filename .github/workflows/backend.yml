@@ -32,3 +32,9 @@ jobs:
 
       - name: Test
         run: npm run test --workspace backend --if-present
+
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-coverage
+          path: backend/coverage/lcov.info
