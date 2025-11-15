@@ -63,7 +63,7 @@ export function createLambdaFactory(stack: Stack, idempotencyTableName: string) 
 
     const fn = new NodejsFunction(stack, id, {
       ...base,
-      entry: path.join(__dirname, `../lambda-fns/${entry}`),
+      entry: path.join(__dirname, `../src/handlers/${entry}`),
       handler: 'handler',
       environment: { ...base.environment, ...env },
       logGroup: logGroup,

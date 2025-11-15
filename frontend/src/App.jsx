@@ -730,6 +730,7 @@ function App() {
             onBack={goBack}
           />
         );
+
       default:
         return <AuthScreen />;
     }

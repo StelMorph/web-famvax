@@ -15,3 +15,4 @@ export const CORS_HEADERS = {
   // include device headers by default (dynamic CORS in middleware will still override/mirror)
   'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Device-Id, X-Device-Info',
 };
+
