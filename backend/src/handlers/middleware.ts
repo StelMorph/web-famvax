@@ -11,7 +11,6 @@ export const withLogging = (handler: LambdaHandler) => {
   return async (event: APIGatewayProxyEventV2, context: Context) => {
     const correlationId = event.headers?.['x-correlation-id'] || randomUUID();
     logger.info({ correlationId, event }, 'Incoming request');
-
     try {
       const result = await handler(event, context);
       logger.info({ correlationId, result }, 'Request successful');

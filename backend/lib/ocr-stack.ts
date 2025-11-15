@@ -81,3 +81,4 @@ export class OcrStack extends cdk.Stack {
     // new cdk.CfnOutput(this, 'OcrApiUrl', { value: ocrApi.url! });
   }
 }
+

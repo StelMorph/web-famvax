@@ -65,11 +65,12 @@ export const handler = async (event: APIGatewayProxyEventV2): Promise<APIGateway
       statusCode: 200,
       body: JSON.stringify({ message: 'File uploaded successfully', fileKey: key, signedUrl }),
     };
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error uploading PDF:', error);
+    const message = error instanceof Error ? error.message : 'An unknown error occurred.';
     return {
       statusCode: 500,
-      body: JSON.stringify({ message: 'Failed to upload PDF.', error: error.message }),
+      body: JSON.stringify({ message: 'Failed to upload PDF.', error: message }),
     };
   }
 };
