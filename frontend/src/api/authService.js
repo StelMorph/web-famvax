@@ -18,7 +18,6 @@ let onSessionExpired = () => {
 };
 let inMemoryIdToken = null;
 
-/* ---------------- Device Id ---------------- */
 export function ensureDeviceId() {
   let id = localStorage.getItem('deviceId');
   if (!id) {
@@ -30,7 +29,6 @@ export function ensureDeviceId() {
   return id;
 }
 
-/* ---------------- Token persistence ---------------- */
 function setPersistedToken(idToken, email) {
   inMemoryIdToken = idToken || null;
   if (idToken) localStorage.setItem('idToken', idToken);
@@ -72,7 +70,6 @@ function getCurrentUser() {
   return userPool.getCurrentUser();
 }
 
-/* ---------------- UA parsing for device metadata ---------------- */
 function parseUA(ua = navigator.userAgent || '') {
   const out = {
     deviceType: 'Desktop',
@@ -160,37 +157,7 @@ function buildDevicePayload() {
   };
 }
 
-/* ---------------- Robust token retrieval ---------------- */
 export async function getIdToken(forceRefresh = false) {
-  if (!forceRefresh && inMemoryIdToken) {
-    try {
-      if (jwtDecode(inMemoryIdToken).exp * 1000 > Date.now()) return inMemoryIdToken;
-    } catch {
-      inMemoryIdToken = null;
-    }
-  }
-
-  const cu = getCurrentUser();
-  if (cu) {
-    return new Promise((resolve, reject) => {
-      cu.getSession((err, session) => {
-        if (err || !session?.isValid()) return resolve(null);
-        if (forceRefresh) {
-          cu.refreshSession(session.getRefreshToken(), (e, newSession) => {
-            if (e) return reject(e);
-            const fresh = newSession.getIdToken().getJwtToken();
-            setPersistedToken(fresh);
-            resolve(fresh);
-          });
-        } else {
-          const tok = session.getIdToken().getJwtToken();
-          setPersistedToken(tok);
-          resolve(tok);
-        }
-      });
-    });
-  }
-
   const lsToken = localStorage.getItem('idToken');
   if (lsToken) {
     try {
@@ -200,11 +167,9 @@ export async function getIdToken(forceRefresh = false) {
       }
     } catch {}
   }
-
   return null;
 }
 
-/* ---------------- Sign in/out/up ---------------- */
 export async function signIn(email, password) {
   const user = new CognitoUser({ Username: email, Pool: userPool });
   user.setAuthenticationFlowType('USER_PASSWORD_AUTH');
@@ -214,13 +179,11 @@ export async function signIn(email, password) {
     user.authenticateUser(authDetails, { onSuccess: resolve, onFailure: reject });
   });
 
-  // persist token immediately
   const idToken = session.getIdToken().getJwtToken();
   setPersistedToken(idToken, email);
   api.setAuthToken(idToken);
   startSessionManager(idToken);
 
-  // Finish device registration from FE (NO polling /devices)
   try {
     const payload = buildDevicePayload();
     await api.completeLogin(payload);
@@ -229,14 +192,12 @@ export async function signIn(email, password) {
     console.warn('[auth] complete-login failed (continuing):', e);
   }
 
-  // Mark that sign-in path controls boot and signal the app
   window.__famvaxBootSetByEvent = true;
   window.dispatchEvent(new CustomEvent('device-ready'));
 
   return { success: true, session };
 }
 
-/** Returning sessions (app boot) still touch finisher for lastSeen */
 export async function refreshDeviceRegistration() {
   try {
     const token = await getIdToken(false);
@@ -251,9 +212,7 @@ export async function refreshDeviceRegistration() {
       await api.completeLogin();
     }
     api.clearCache('GET:/devices');
-  } catch {
-    // quiet
-  }
+  } catch {}
 }
 
 export function signOut() {

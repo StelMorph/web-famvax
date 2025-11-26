@@ -12,8 +12,7 @@ import { Runtime } from 'aws-cdk-lib/aws-lambda';
 import { Duration, RemovalPolicy } from 'aws-cdk-lib';
 import { createLambdaFactory } from './lambda-baseline';
 
-/** helper to resolve lambda source files */
-const lf = (...p: string[]) => path.join(__dirname, '..', 'src', ...p);
+
 
 export interface BackendStackProps extends cdk.StackProps {
   ocrFunction: NodejsFunction;

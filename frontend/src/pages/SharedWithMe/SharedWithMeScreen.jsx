@@ -99,7 +99,8 @@ function SharedWithMeScreen() {
         try {
           await api.revokeShare(share.shareId);
           fetchDetailedData();
-        } catch (err) {
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        } catch (_err) {
           showNotification({
             type: 'error',
             title: 'Error',

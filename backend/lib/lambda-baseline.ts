@@ -7,7 +7,7 @@ import { Architecture, Tracing, Runtime } from 'aws-cdk-lib/aws-lambda';
 import { NodejsFunction, NodejsFunctionProps, SourceMapMode } from 'aws-cdk-lib/aws-lambda-nodejs';
 import { Stack } from 'aws-cdk-lib';
 import * as path from 'path';
-import { Table } from 'aws-cdk-lib/aws-dynamodb';
+
 
 export function createLambdaFactory(stack: Stack, idempotencyTableName: string) {
   const dlq = new sqs.Queue(stack, 'LambdaDLQ', {

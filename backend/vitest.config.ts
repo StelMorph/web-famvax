@@ -6,7 +6,8 @@ export default defineConfig({
     environment: 'node',
     globals: true,
     coverage: {
-      provider: 'v8',
+      enabled: true,
+      provider: 'istanbul',
       reporter: ['text', 'json', 'html'],
       exclude: [
         '**/node_modules/**',

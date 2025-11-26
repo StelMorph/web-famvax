@@ -1,6 +1,6 @@
 // backend/lambda-fns/vaccines/update.ts
 import { GetCommand, UpdateCommand } from '@aws-sdk/lib-dynamodb';
-import { docClient, CORS_HEADERS } from '../common/clients';
+import { docClient } from '../common/clients';
 import { createHandler, AuthenticatedHandler } from '../common/middleware';
 import { logAuditEvent } from '../audit/audit';
 import { z } from 'zod';

@@ -1,5 +1,3 @@
-// src/components/screens/ProfileDetailScreen.jsx (FULL, FINAL VERSION)
-
 import React, { useContext, useMemo, useState, useEffect, useRef } from 'react';
 import { AppContext } from '../../contexts/AppContext.js';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
@@ -29,9 +27,6 @@ import {
 import api from '../../api/apiService.js';
 
 import { useScanFlow } from '../../flows/scanFlow.js';
-// ========================================================================
-//  Helper Functions
-// ========================================================================
 
 const Sort = {
   UPCOMING: 'upcoming',
@@ -95,10 +90,6 @@ const cmpNum = (a, b, dir = 1) => {
   if (bN) return -1;
   return dir * (a - b);
 };
-
-// ========================================================================
-//  Child Components
-// ========================================================================
 
 function LogEntry({ log, currentUserId }) {
   const ICONS = {
@@ -374,17 +365,14 @@ function SortDropdown({ value, onChange }) {
   );
 }
 
-// ========================================================================
-//  MAIN COMPONENT: ProfileDetailScreen
-// ========================================================================
-
-function ProfileDetailScreen() {
+function ProfileDetailScreen({ onBack, ...props }) {
   const {
-    goBack,
+    goHome,
     appState,
     showModal,
     closeModal,
     navigateTo,
+    goBack,
     allProfiles,
     setAllProfiles,
     showNotification,
@@ -412,7 +400,8 @@ function ProfileDetailScreen() {
               p.profileId === profile.profileId ? { ...p, vaccines: vaccines || [] } : p,
             ),
           );
-        } catch {
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        } catch (_err) {
           showNotification({
             type: 'error',
             title: 'Error',
@@ -452,7 +441,6 @@ function ProfileDetailScreen() {
         const dateVal = v.date ? new Date(v.date) : null;
         const dueVal = v.nextDueDate ? new Date(v.nextDueDate) : null;
         const isCompleted = !!(dateVal && dateVal <= today);
-        const isUpcoming = !!((dueVal && dueVal >= today) || (dateVal && dateVal > today));
         const category = isCompleted ? 'completed' : 'coming';
         const sortDate = isCompleted ? dateVal : dueVal || dateVal || null;
         return { ...v, category, _date: sortDate };
@@ -536,7 +524,8 @@ function ProfileDetailScreen() {
                 title: 'Restored',
                 message: 'The record was restored.',
               });
-            } catch (err) {
+              // eslint-disable-next-line @typescript-eslint/no-unused-vars
+            } catch (_err) {
               showNotification({
                 type: 'error',
                 title: 'Undo Failed',
@@ -582,7 +571,8 @@ function ProfileDetailScreen() {
             message: `You have left the shared profile "${profile.name}".`,
           });
           navigateTo('my-family-screen');
-        } catch (err) {
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        } catch (_err) {
           showNotification({
             type: 'error',
             title: 'Error',

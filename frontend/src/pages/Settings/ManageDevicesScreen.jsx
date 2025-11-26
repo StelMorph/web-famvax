@@ -66,7 +66,8 @@ export default function ManageDevicesScreen() {
       try {
         const list = await api.listDevices();
         if (alive) setDevices(list || []);
-      } catch (err) {
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      } catch (_err) {
         if (alive) {
           showNotification?.({ type: 'error', title: 'Error', message: 'Failed to load devices.' });
           setDevices([]); // avoid infinite spinner

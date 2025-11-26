@@ -1,4 +1,3 @@
-// frontend/src/pages/Settings/SettingsScreen.jsx
 import React, { useContext, useEffect, useRef } from 'react';
 import { AppContext } from '../../contexts/AppContext.js';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
@@ -18,7 +17,15 @@ import {
 import api from '../../api/apiService.js';
 import auth from '../../api/authService.js';
 
-function SettingsScreen() {
+function SettingsScreen({
+  onOpenAccount,
+  onOpenHelp,
+  onOpenSub,
+  onOpenDevices,
+  onOpenPrivacy,
+  onOpenStdSchedule,
+  onSignOut,
+}) {
   const {
     navigateTo,
     showNotification,
@@ -29,8 +36,8 @@ function SettingsScreen() {
     setSubscription,
     setReceivedShares,
     fetchDetailedData,
-    // FIX: Destructure pendingInviteCount directly from the context.
     pendingInviteCount,
+    signOut,
   } = useContext(AppContext);
 
   const prefetchedRef = useRef(false);
@@ -88,32 +95,28 @@ function SettingsScreen() {
         console.error('Settings prefetch failed:', err);
       }
     })();
-  }, []); // run once
+  }, [
+    devices,
+    fetchDetailedData,
+    receivedShares,
+    setDevices,
+    setReceivedShares,
+    setSubscription,
+    subscription,
+  ]);
 
   const handleSignOutClick = () => {
-    const doSignOut = async () => {
-      try {
-        const deviceId =
-          localStorage.getItem('deviceId') || localStorage.getItem('currentDeviceId');
-        if (deviceId && typeof api.removeDevice === 'function') {
-          await api.removeDevice(deviceId).catch(() => {});
-        }
-      } finally {
-        auth.signOut();
-        navigateTo?.('auth-screen');
-      }
-    };
-
+    // Call the signOut function from AppContext, which handles state update and navigation
     if (typeof showNotification === 'function') {
       showNotification({
         type: 'confirm-destructive',
         title: 'Sign Out?',
         message: 'This will sign you out on this device.',
         confirmText: 'Sign Out',
-        onConfirm: doSignOut,
+        onConfirm: () => signOut({ message: 'Signed out.' }), // Use context signOut
       });
     } else {
-      doSignOut();
+      signOut({ message: 'Signed out.' }); // Use context signOut
     }
   };
 

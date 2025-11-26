@@ -14,7 +14,7 @@ async function getSSMValue(name: string): Promise<string | undefined> {
       }),
     );
     return result.Parameter?.Value;
-  } catch (err) {
+  } catch (_err) {
     console.warn(`⚠️ Failed to get ${name} from SSM, using .env`);
     return undefined;
   }

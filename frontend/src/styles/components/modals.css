@@ -9,7 +9,7 @@
   padding: 20px;
 }
 .modal-overlay.notification {
-  z-index: 3000;
+  z-index: 20000; /* Higher than undo-toast (10000) and all other modals to ensure notification modals appear on top */
 }
 
 .modal-content {
