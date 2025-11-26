@@ -131,10 +131,10 @@ function App() {
         const state = { screen, params };
         const url = `#${screen}`;
         if (replace) {
-          console.log('Replacing history state:', { state, url });
+          // console.log('Replacing history state:', { state, url });
           window.history.replaceState(state, '', url);
         } else {
-          console.log('Pushing history state:', { state, url });
+          // console.log('Pushing history state:', { state, url });
           window.history.pushState(state, '', url);
         }
       };

@@ -12,8 +12,6 @@ import { Runtime } from 'aws-cdk-lib/aws-lambda';
 import { Duration, RemovalPolicy } from 'aws-cdk-lib';
 import { createLambdaFactory } from './lambda-baseline';
 
-
-
 export interface BackendStackProps extends cdk.StackProps {
   ocrFunction: NodejsFunction;
   getUploadUrlFn: NodejsFunction; // <-- ADD THIS LINE

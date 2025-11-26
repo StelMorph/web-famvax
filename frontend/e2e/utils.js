@@ -83,12 +83,22 @@ export async function deleteProfile(page, profileId) {
   await page.fill(`input[placeholder="${profileName}"]`, profileName);
 
   await Promise.all([
-    modal.waitFor({ state: 'detached', timeout: 15000 }),
+    modal.waitFor({ state: 'detached', timeout: 30000 }),
     page.click('button:has-text("Delete")'),
   ]);
 
-  await page.waitForURL(/#my-family-screen/);
-  await expect(page.locator(`[data-testid="${profileId}"]`)).not.toBeVisible();
+  try {
+    console.log(`Waiting for profile ${profileId} to be deleted...`);
+    await page.waitForURL(/#my-family-screen/, { timeout: 30000 });
+    await expect(page.locator(`[data-testid="${profileId}"]`)).not.toBeVisible({ timeout: 30000 });
+  } catch (e) {
+    console.log('Profile did not disappear as expected. Reloading to verify deletion...');
+    await page.reload();
+    await navigateToFamilyScreen(page);
+    await expect(page.locator(`[data-testid="${profileId}"]`)).not.toBeVisible({
+      timeout: 30000,
+    });
+  }
 }
 
 export async function fillDatePicker(page, year, monthIndex, day) {

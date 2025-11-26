@@ -20,8 +20,8 @@
     "@types/fast-levenshtein": "^0.0.4",
     "@types/node-fetch": "^2.6.13",
     "@types/pdfkit": "^0.17.3",
-    "@vitest/coverage-istanbul": "^1.0.0",
-    "@vitest/coverage-v8": "^1.0.0",
+    "@vitest/coverage-istanbul": "^4.0.14",
+    "@vitest/coverage-v8": "^4.0.14",
     "aws-cdk": "^2.150.0",
     "aws-sdk-client-mock": "^4.1.0",
     "axios": "^1.13.2",
@@ -31,7 +31,7 @@
     "globals": "^16.4.0",
     "node-fetch": "^2.7.0",
     "ts-node": "^10.9.2",
-    "vitest": "^1.0.0"
+    "vitest": "^4.0.14"
   },
   "dependencies": {
     "@aws-lambda-powertools/idempotency": "^2.3.0",
