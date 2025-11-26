@@ -59,7 +59,7 @@ const acceptShareLogic: AuthenticatedHandler = async (event) => {
 export const handler = createHandler({
   schema: AcceptShareSchema,
   handler: acceptShareLogic,
-  access: (event) => ({
+  access: (_event) => ({
     requireDevice: true,
     enforceDeviceLimit: true,
     // Note: We don't need profile-level access checks here,

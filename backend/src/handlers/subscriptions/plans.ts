@@ -44,7 +44,6 @@ const getPlansLogic: AuthenticatedHandler = async (_event: WrappedEvent) => {
     };
   }
 };
-
 export const handler = createHandler({
   schema: z.object({}), // No body schema needed for a GET request
   handler: getPlansLogic,

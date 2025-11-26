@@ -44,8 +44,33 @@ export default [
       'react-refresh/only-export-components': 'warn',
       '@typescript-eslint/no-unused-vars': [
         'warn',
-        { argsIgnorePattern: '^_', varsIgnorePattern: '^_', ignoreRestSiblings: true },
+        {
+          vars: 'all',
+          args: 'after-used',
+          ignoreRestSiblings: true,
+          varsIgnorePattern: '^_',
+          argsIgnorePattern: '^_',
+        },
       ],
     },
   },
+  // Override for Node.js specific files (e.g., Playwright tests, global setup)
+  {
+    files: [
+      'e2e/**/*.js', // Playwright test files
+      '*.config.ts', // Playwright config
+      'global-setup.js', // Playwright global setup
+    ],
+    languageOptions: {
+      globals: {
+        ...globals.node, // process, module, require, etc.
+      },
+      sourceType: 'module', // Use module for most of these files
+    },
+    rules: {
+      '@typescript-eslint/no-require-imports': 'off', // Allow require() for Playwright config/setup
+      'no-undef': 'off', // Turn off no-undef to prevent errors for global process, module, require
+    },
+  },
 ];
+

@@ -1,6 +1,6 @@
 // src/api/apiService.js
 // Centralized API client: auth headers, request de-duplication, TTL cache.
-const OCR_API_BASE = (import.meta.env.VITE_OCR_API_URL || '').trim().replace(/\/+$/, '');
+
 const RAW_BASE = (import.meta.env.VITE_API_URL || '').trim();
 const API_BASE = RAW_BASE.replace(/\/+$/, '');
 

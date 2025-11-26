@@ -56,7 +56,7 @@ const deleteShareLogic: AuthenticatedHandler = async (event) => {
 export const handler = createHandler({
   schema: z.object({}),
   handler: deleteShareLogic,
-  access: (event) => ({
+  access: (_event) => ({
     requireDevice: true,
     // Access control is handled inside the function
   }),

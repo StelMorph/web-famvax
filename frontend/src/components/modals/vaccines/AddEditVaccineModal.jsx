@@ -3,8 +3,9 @@ import React, { useContext, useState, useEffect, useRef } from 'react';
 import { AppContext } from '../../../contexts/AppContext.js';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faTrashAlt, faSpinner, faTimes } from '@fortawesome/free-solid-svg-icons';
-import DatePicker, { formatDateForDisplay } from '../../common/DatePicker.jsx';
+import DatePicker from '../../common/DatePicker.jsx';
 import api from '../../../api/apiService.js';
+import { formatDateForDisplay } from '../../../utils/dateUtils.js';
 
 const INITIAL_FORM_STATE = {
   vaccineName: '',
@@ -105,7 +106,7 @@ function AddEditVaccineModal({ vaccine, mode, profileId, onClose, onSave, onDele
     showNotification({
       type: 'confirm-destructive',
       title: 'Delete Record?',
-      message: 'This will delete the record now. You can undo for the next 10 seconds.',
+      message: 'This will delete the record forever.',
       onConfirm: async () => {
         setIsDeleting(true);
         try {
@@ -274,7 +275,7 @@ function AddEditVaccineModal({ vaccine, mode, profileId, onClose, onSave, onDele
               Cancel
             </button>
             <button
-              type="button"
+              type="submit"
               className="btn btn-primary"
               onClick={handleSave}
               disabled={!hasChanges || isSaving || isDeleting}

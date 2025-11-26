@@ -1,4 +1,3 @@
-// src/App.jsx
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { AppProvider } from './contexts/AppContext.js';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
@@ -6,7 +5,6 @@ import { faSpinner } from '@fortawesome/free-solid-svg-icons';
 import { jwtDecode } from 'jwt-decode';
 import { createPortal } from 'react-dom';
 
-// Pages
 import AuthScreen from './pages/Auth/AuthScreen.jsx';
 import SignupScreen from './pages/Auth/SignupScreen.jsx';
 import MyFamilyScreen from './pages/MyFamily/MyFamilyScreen.jsx';
@@ -21,22 +19,16 @@ import SharedWithMeScreen from './pages/SharedWithMe/SharedWithMeScreen.jsx';
 import ManageDevicesScreen from './pages/Settings/ManageDevicesScreen.jsx';
 import AIScanReviewExtractedDataScreen from './pages/MyFamily/AIScanReviewExtractedDataScreen.jsx';
 
-// Modals / UI
 import CameraScanModal from './components/modals/global/CameraScanModal.jsx';
 import ModalsController from './components/modals/ModalsController.jsx';
 import NotificationManager from './components/common/NotificationManager.jsx';
 import ControlPanel from './components/layout/ControlPanel.jsx';
 
-// API
 import api from './api/apiService.js';
 import auth from './api/authService.js';
 
-// Styles
 import './styles/index.css';
 
-/* -------------------------------------------------------------
- * Routing helpers
- * ----------------------------------------------------------- */
 const readHashScreen = () => (window.location.hash || '').replace('#', '').trim();
 const validScreens = new Set([
   'auth-screen',
@@ -54,9 +46,6 @@ const validScreens = new Set([
   'manage-devices-screen',
 ]);
 
-/* =============================================================
- * App
- * =========================================================== */
 function App() {
   const initialScreenFromHash = readHashScreen();
   const initialScreenFromStorage = localStorage.getItem('lastScreen') || '';
@@ -66,7 +55,6 @@ function App() {
       ? initialScreenFromStorage
       : 'auth-screen';
 
-  // Global state
   const [currentUser, setCurrentUser] = useState({
     isLoggedIn: false,
     userEmail: null,
@@ -78,7 +66,6 @@ function App() {
     areDetailsLoading: false,
   });
 
-  // Cached data
   const [allProfiles, setAllProfiles] = useState(null);
   const [devices, setDevices] = useState(null);
   const [subscriptionHistory, setSubscriptionHistory] = useState(null);
@@ -86,7 +73,6 @@ function App() {
   const [receivedShares, setReceivedShares] = useState(null);
   const [pendingInviteCount, setPendingInviteCount] = useState(0);
 
-  // UI state
   const [isLoadingApp, setIsLoadingApp] = useState(true);
   const [bootReady, setBootReady] = useState(false);
   const [activeScreen, setActiveScreen] = useState(initialScreen);
@@ -97,13 +83,11 @@ function App() {
   const [scannedData, setScannedData] = useState(null);
   const [scanRecordType, setScanRecordType] = useState('profile');
 
-  /* ---------------------- Notification helpers ---------------------- */
   const showNotification = useCallback(
     (details) => setNotification({ ...details, id: Date.now() }),
     [],
   );
 
-  /* ---------------------- Global navigation guard ------------------- */
   const navGuardRef = useRef(null);
   const setNavigationGuard = useCallback((fnOrNull) => {
     navGuardRef.current = typeof fnOrNull === 'function' ? fnOrNull : null;
@@ -112,7 +96,6 @@ function App() {
     navGuardRef.current = null;
   }, []);
 
-  // 🔒 Central guard: block leaving AI Review if there are unsaved edits
   const maybeBlockLeavingAIReview = useCallback(
     (proceed) => {
       if (activeScreen === 'ai-scan-review-extracted' && reviewDirty) {
@@ -135,7 +118,6 @@ function App() {
     [activeScreen, reviewDirty],
   );
 
-  /* ---------------------- Centralized navigation -------------------- */
   const navigateTo = useCallback(
     (screen, params = {}, options = {}) => {
       const { replace = false, bypassGuard = false } = options;
@@ -149,16 +131,16 @@ function App() {
         const state = { screen, params };
         const url = `#${screen}`;
         if (replace) {
+          // console.log('Replacing history state:', { state, url });
           window.history.replaceState(state, '', url);
         } else {
+          // console.log('Pushing history state:', { state, url });
           window.history.pushState(state, '', url);
         }
       };
 
-      // 🔒 Check global AI Review dirty state FIRST (unless explicitly bypassed)
       if (!bypassGuard && maybeBlockLeavingAIReview(proceed)) return;
 
-      // Optional per-screen guard (still supported)
       if (navGuardRef.current) {
         const handled = navGuardRef.current(proceed, {
           type: 'navigateTo',
@@ -180,7 +162,6 @@ function App() {
     }
     const proceed = () => window.history.back();
 
-    // 🔒 Check global AI Review dirty state FIRST
     if (maybeBlockLeavingAIReview(proceed)) return;
 
     if (navGuardRef.current) {
@@ -196,8 +177,8 @@ function App() {
 
   const startScanning = useCallback((recordType) => {
     setScanRecordType(recordType);
-    setAppState((prev) => ({ ...prev, activeModal: null })); // Close choice modal
-    setIsScanning(true); // Open camera modal
+    setAppState((prev) => ({ ...prev, activeModal: null }));
+    setIsScanning(true);
   }, []);
 
   const handleScanSuccess = useCallback(
@@ -209,9 +190,6 @@ function App() {
     [navigateTo],
   );
 
-  /* -------------------------------------------------------------
-   * Unified fetch for My Family (profiles + shares + devices)
-   * ----------------------------------------------------------- */
   const unifiedInFlight = useRef(false);
   const fetchAllForMyFamily = useCallback(async () => {
     if (unifiedInFlight.current) return;
@@ -219,7 +197,10 @@ function App() {
     setAppState((prev) => ({ ...prev, areDetailsLoading: true }));
     try {
       const [ownedP, shares, devs] = await Promise.all([
-        (api.getOwnedProfiles ? api.getOwnedProfiles() : api.getProfiles()).catch(() => []),
+        (api.getOwnedProfiles
+          ? api.getOwnedProfiles({ force: true })
+          : api.getProfiles({ force: true })
+        ).catch(() => []),
         api.getReceivedShares().catch(() => []),
         api.listDevices({ force: true }).catch(() => []),
       ]);
@@ -260,7 +241,7 @@ function App() {
             message: `${finalData.name} has been added.`,
           });
           await fetchAllForMyFamily();
-          setReviewDirty(false); // clean after save
+          setReviewDirty(false);
           navigateTo('my-family-screen', {}, { replace: false, bypassGuard: true });
         } else if (scanRecordType === 'vaccine') {
           const profileId = appState.currentProfileId;
@@ -291,7 +272,6 @@ function App() {
     [scanRecordType, appState.currentProfileId, navigateTo, showNotification, fetchAllForMyFamily],
   );
 
-  // Refs / flags
   const bootDidRun = useRef(false);
   const warmOnceRef = useRef(false);
   const settingsFetchedHeaderRef = useRef(false);
@@ -300,7 +280,6 @@ function App() {
   const lastMyFamilyFetchAtRef = useRef(0);
   const bootSetByEventRef = useRef(false);
 
-  // Sign-out handler
   const handleSignOut = useCallback(
     (options = {}) => {
       auth.signOut();
@@ -326,16 +305,31 @@ function App() {
     [navigateTo, showNotification],
   );
 
-  // Session expiry → force sign out
   useEffect(() => {
     auth.setSessionExpiredHandler(() => handleSignOut({ message: 'Your session has expired.' }));
   }, [handleSignOut]);
 
-  // Device-ready (fresh login path)
   useEffect(() => {
     const onReady = () => {
       bootSetByEventRef.current = true;
       setBootReady(true);
+
+      const idToken = localStorage.getItem('idToken');
+      if (idToken) {
+        try {
+          const decodedToken = jwtDecode(idToken);
+          setCurrentUser({
+            isLoggedIn: true,
+            userEmail: decodedToken.email,
+            isPremium: decodedToken['custom:subscription_status'] === 'active',
+          });
+        } catch (e) {
+          console.error('Failed to decode token on device-ready:', e);
+          handleSignOut();
+          return;
+        }
+      }
+
       const remembered = readHashScreen() || localStorage.getItem('lastScreen') || '';
       const target =
         validScreens.has(remembered) && !['auth-screen', 'signup-screen'].includes(remembered)
@@ -347,7 +341,6 @@ function App() {
     return () => window.removeEventListener('device-ready', onReady);
   }, [navigateTo]);
 
-  // Background warm-up once per session
   useEffect(() => {
     if (!bootReady || warmOnceRef.current) return;
     warmOnceRef.current = true;
@@ -358,7 +351,6 @@ function App() {
     })();
   }, [bootReady]);
 
-  // Boot for returning sessions (no fresh sign-in event)
   const checkUserAndEnterApp = useCallback(async () => {
     setIsLoadingApp(true);
     const idToken = await auth.getIdToken();
@@ -405,20 +397,14 @@ function App() {
     checkUserAndEnterApp();
   }, [checkUserAndEnterApp]);
 
-  // My Family: throttled loader on entry/re-entry
   useEffect(() => {
     if (!bootReady) return;
     if (activeScreen !== 'my-family-screen') return;
-
-    const now = Date.now();
-    if (now - lastMyFamilyFetchAtRef.current < 1500) return;
-    lastMyFamilyFetchAtRef.current = now;
 
     api.clearCache('GET:/profiles');
     fetchAllForMyFamily();
   }, [bootReady, activeScreen, fetchAllForMyFamily]);
 
-  // Profile-detail direct load safeguard
   useEffect(() => {
     if (!bootReady) return;
     if (activeScreen !== 'profile-detail-screen') return;
@@ -434,7 +420,6 @@ function App() {
     }
   }, [bootReady, activeScreen, appState.currentProfileId, allProfiles, navigateTo]);
 
-  // Settings: prefetch subscription header (once per visit)
   useEffect(() => {
     if (!bootReady) return;
     if (activeScreen !== 'settings-screen') return;
@@ -455,7 +440,6 @@ function App() {
     })();
   }, [bootReady, activeScreen]);
 
-  // Subscription screen: ensure header + history (once per visit)
   useEffect(() => {
     if (!bootReady) return;
     if (activeScreen !== 'subscription-screen') return;
@@ -490,19 +474,25 @@ function App() {
     }
   }, [bootReady, activeScreen, subscription, subscriptionHistory]);
 
-  // Back/forward sync + reset visit-scoped flags
   useEffect(() => {
     const handlePopState = (event) => {
+      console.log('Popstate event received:', event);
       const screenFromState = event.state?.screen || readHashScreen() || 'auth-screen';
       const safeScreen = validScreens.has(screenFromState) ? screenFromState : 'auth-screen';
       const isAuthRoute = ['auth-screen', 'signup-screen'].includes(safeScreen);
 
       // Basic auth gate
       if (currentUser.isLoggedIn && isAuthRoute) {
+        console.log(
+          'User logged in, but tried to go to auth route. Redirecting to my-family-screen.',
+        );
         navigateTo('my-family-screen', {}, { replace: true });
         return;
       }
       if (!currentUser.isLoggedIn && !isAuthRoute) {
+        console.log(
+          'User not logged in, but tried to go to protected route. Redirecting to auth-screen.',
+        );
         navigateTo('auth-screen', {}, { replace: true });
         return;
       }
@@ -521,10 +511,6 @@ function App() {
     return () => window.removeEventListener('popstate', handlePopState);
   }, [currentUser.isLoggedIn, navigateTo]);
 
-  /* -------------------------------------------------------------
-   * IMPORTANT: click hijacker for #links so guard + routing run
-   * (capture phase + stop propagation to beat any other handlers)
-   * ----------------------------------------------------------- */
   useEffect(() => {
     const handler = (e) => {
       const a = e.target.closest && e.target.closest('a[href^="#"]');
@@ -545,9 +531,6 @@ function App() {
     return () => document.removeEventListener('click', handler, true);
   }, [navigateTo]);
 
-  /* -------------------------------------------------------------
-   * Also translate hash changes to navigateTo (deeplinks)
-   * ----------------------------------------------------------- */
   useEffect(() => {
     const syncFromHash = () => {
       const screen = readHashScreen();
@@ -557,9 +540,6 @@ function App() {
     return () => window.removeEventListener('hashchange', syncFromHash);
   }, [navigateTo]);
 
-  /* -------------------------------------------------------------
-   * Context value (now also exposes nav guard + reviewDirty setter)
-   * ----------------------------------------------------------- */
   const contextValue = useMemo(
     () => ({
       currentUser,
@@ -598,7 +578,6 @@ function App() {
       setNavigationGuard,
       clearNavigationGuard,
 
-      // 🔒 expose setter so AI review screen can mark itself dirty/clean
       setReviewDirty,
     }),
     [
@@ -756,7 +735,7 @@ function App() {
         </div>
       </div>
 
-      {/* Render camera modal in a portal so it always sits on top */}
+      {}
       {isScanning &&
         createPortal(
           <div className="modal-overlay">

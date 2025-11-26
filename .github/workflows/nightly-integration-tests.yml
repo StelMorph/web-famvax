@@ -1,0 +1,37 @@
+name: Nightly Integration Tests
+
+on:
+  workflow_dispatch: # Allows manual triggering
+  schedule:
+    # Runs at 00:00 UTC every day
+    - cron: '0 0 * * *'
+
+jobs:
+  run-integration-tests:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20' # Use a stable LTS version
+
+      - name: Install root dependencies
+        run: npm install
+
+      - name: Install backend dependencies
+        run: npm install
+        working-directory: ./backend
+
+      - name: Run integration tests
+        run: npm run test:integration
+        working-directory: ./backend
+        env:
+          # These secrets must be configured in your GitHub repository settings
+          # Go to Settings -> Secrets and variables -> Actions
+          # Add new repository secrets: VITE_API_BASE_URL, VITE_TEST_USER_AUTH_TOKEN
+          VITE_API_BASE_URL: ${{ secrets.VITE_API_BASE_URL }}
+          VITE_TEST_USER_AUTH_TOKEN: ${{ secrets.VITE_TEST_USER_AUTH_TOKEN }}

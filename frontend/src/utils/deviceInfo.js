@@ -2,7 +2,6 @@
 export function detectClientDevice() {
   const nav = typeof navigator !== 'undefined' ? navigator : {};
   const ua = (nav.userAgent || '').toLowerCase();
-  const platform = (nav.platform || '').toLowerCase();
   const brands = nav.userAgentData?.brands || [];
 
   // Browser (best effort)

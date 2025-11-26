@@ -6,8 +6,6 @@ import { faApple, faGoogle } from '@fortawesome/free-brands-svg-icons';
 import { faArrowLeft, faSpinner, faEye, faEyeSlash } from '@fortawesome/free-solid-svg-icons';
 import auth from '../../api/authService.js';
 
-const asciiRegex = /^[\x00-\x7F]*$/;
-
 function SignupScreen() {
   const { goBack, navigateTo, showNotification } = useContext(AppContext);
   const [email, setEmail] = useState('');

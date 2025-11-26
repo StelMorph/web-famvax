@@ -1,0 +1,50 @@
+{
+  "cookies": [],
+  "origins": [
+    {
+      "origin": "http://localhost:5173",
+      "localStorage": [
+        {
+          "name": "lastScreen",
+          "value": "my-family-screen"
+        },
+        {
+          "name": "CognitoIdentityServiceProvider.6m829vt4vauamnuj8tmhtfpa37.stelmorph@gmail.com.accessToken",
+          "value": "eyJraWQiOiJ6cE95cHlRRmJpcEJcL3hIUXlrb2NYcUNUR3JORlwvYlJtYlRcLzkzNm00Q240PSIsImFsZyI6IlJTMjU2In0.eyJzdWIiOiI4NDg4MjQwOC04MGIxLTcwMDktNmIyOC1lNjQ2MDY5MzlkOGUiLCJpc3MiOiJodHRwczpcL1wvY29nbml0by1pZHAudXMtZWFzdC0xLmFtYXpvbmF3cy5jb21cL3VzLWVhc3QtMV91VzVTV0JzRkUiLCJjbGllbnRfaWQiOiI2bTgyOXZ0NHZhdWFtbnVqOHRtaHRmcGEzNyIsIm9yaWdpbl9qdGkiOiI5N2MwM2ZjOS0zMjhjLTQzYTUtOWEyZS02YWE2NzFjMDI3NjgiLCJldmVudF9pZCI6ImQ0YmQ1MWVjLTQ4YmItNGFlZi1hYTg5LTNjZGJiNmQ4NTg3MyIsInRva2VuX3VzZSI6ImFjY2VzcyIsInNjb3BlIjoiYXdzLmNvZ25pdG8uc2lnbmluLnVzZXIuYWRtaW4iLCJhdXRoX3RpbWUiOjE3NjQxNjg5NTUsImV4cCI6MTc2NDE3MjU1NSwiaWF0IjoxNzY0MTY4OTU2LCJqdGkiOiI2MjdiOTIxOC0wMjUxLTRlNDctYmQ5MS04YTdmNDhkZDRlNzAiLCJ1c2VybmFtZSI6Ijg0ODgyNDA4LTgwYjEtNzAwOS02YjI4LWU2NDYwNjkzOWQ4ZSJ9.LsTJmz6izO1OxE63gKvhizuE2t6eYEiNXpwcYIhjZtUTD0aSbwntmPEM_egyKmMVEgf8qOsf1bwg9a1cDqmxoKD1FkqBZTj3ecVQkuvggUf6s30ZtM6i-A8fwlxt9Ln7Y3vTI0E8bJweflIkHHT4qyR1ODrJhi_wm-chEdu96KQpQCG0gLZnlbCb8o_j14Lu4c0eb7P5lXGEpB-s4ijvtrAwHSgeNMpIANGYrqhMBmgvKXu9K05WI4h5wrRdfx51ErLbSiILj6NA6uZlfWfuvKfmZXDhvCzaF_ZEUKZ4kM9qqDC4c2xQ5R4eNC_Qx6kBBP2Ke0tm9if8GzF3D6DFxA"
+        },
+        {
+          "name": "CognitoIdentityServiceProvider.6m829vt4vauamnuj8tmhtfpa37.stelmorph@gmail.com.refreshToken",
+          "value": "eyJjdHkiOiJKV1QiLCJlbmMiOiJBMjU2R0NNIiwiYWxnIjoiUlNBLU9BRVAifQ.Q38H-OsoAAZ94Gln-0_LQzp52RC5HlQSvVOLFkELQOZewKBVUzbIckQCBe7KhrwIuRcFzEza7Dcy0kubrajTQZiTC0IG38AGjMcIuzG7PdEkXlXSDx_6HlY51czG6BlLoRS-SXrmADi1Xn_G5lHDfiGMrD6j-u2cMSL5leOT72ES-0GIrOeq-wG3xfxNf7SbGVq98Oaizoc8o7XvVqSQTxSYu2QE6PXDOrNzS9o3pKOTGNOQKHIyUxlBYVu7pM4AcC1u-Jq4mkIz2tfxTvhOTIvZQX88buKYuNdKvxoGlwq9EtcZV5Mc6JnpAVrebQ_Cw55BPids4eLnAJ1yeKjAog.JuC7BsGE8MM4qWPn.NhiMMTzMcO9UvXxjSNP8cg2skHCYYpJe5DtxoYafzr8PMDxjmBNaANjXnDtw2CeE7R-G9t-bLFtH6bAcsH-6TTPYSBSoum7cGJZaWZXLHxsJ40RvilII8SVyCXaLpAkzwwdfeRuuyUr2opTmNrpqwnt2MumdGmwMQav4HQS6iiZIdJh_WDD3CGKYbusdziUMCE4bG8kROWXwG-o-qWDpjkvutOJtVxw6LgfYj9x-hAnNgmOeLYMXH7zEXYgTSXAJ1mgtaSUh1mvXe9WsBVg8bGbBEzab-Ofk0cx33JlaIeAzx0L82VUHR5GfHP4A7NXEaWMOXVFFI3rT9LNS-hNiPUqMwDNXKDmPs3Fzo6YgUc-6h9MYEsUuVh_d5ZrP0ZNXc8NwuMvAiVH4c_DYKw_1HVzEYWPhFjaH37QuCpJvs3nwHsq6UftMRFM-wYs8-bC3wYJ4Zqu2peHQ6PlxQNGYIsXOnJCyDCSljqdiYnXtztaLJ7joxbpqbu8pubF8P3Ul_jugL3LOC5nNB7b8Z1wapMPhKNYdPkQBPbjwxcwT3TwHpONDuB-emHY7CmdhzU9cTpjRLAGPw29Hkyf2k9TjigZonnW4hfNeDzo0ZHsGHMcHQdp2yIaI1hNt9yEOOJAg9Z81xZUnKKN6p9qxPo9PEd0i3a2H8d2VNvNHzbgugbbN0IWpKdbU4-KP1E-ITKCLiAgNkae6-2HLe_ixvKoE8ccRmT8iMdE3P4MkOtUGKLsC7Y47tmHD0ooGouFao_MepTHuL1iWTX4kGi7DFIAH6YvH-ZDZaNLi_ypeRt-6lAR4_Pl5EByE284RCtSDpoUS7ONWrICHOvapEeFS6EbPSrNvaiX0lm9bhpssEnY7r7UqbHepwIFumDacH8Y09kM95a8jmlfFuoJdKqvQmQz-dbZl4WmZxvf1Va9338LuQ0A2Q4D-RIycEjh7GTfir-VCzQqBABAotiKXckNeciInKVbXD0Q1yx877wTdLErb85tJpnctYKGG2soByOqumHoRZTa19hB9YUfI-yAY-ADnYjixyVTkQ4AJwwWjwFiJyd4kmBHQnOY3jTyTZWvD08ltnBdRlQO1EMaCaXJPBbOkKRaPgx-zMIZJhGcywMtI9RtDMVYa8ntxdACsEjSCDXJ7teN2iW6_5USzooUUK_qrmH0VUV7b8SJPWbls6swl8PSDCaegos6XuN_PXix8xycFvoPPoO76IUKq9RAw7Z0jYYdVh65aTKBD2CHiBtr-UTKnlifSbZXrRgatp7QLUAQ1DZDg3VO6v7iVk10wqFPipo2DY6CAWL954D1O9NLwXM8KIyrZkrI1LgV6OA.R0dpnbMKHpaM_8gpsg7O0Q"
+        },
+        {
+          "name": "CognitoIdentityServiceProvider.6m829vt4vauamnuj8tmhtfpa37.LastAuthUser",
+          "value": "stelmorph@gmail.com"
+        },
+        {
+          "name": "CognitoIdentityServiceProvider.6m829vt4vauamnuj8tmhtfpa37.stelmorph@gmail.com.idToken",
+          "value": "eyJraWQiOiJOaEZRRGhEVk1BbkFmdXFMclJXOVFHbUJLT0RtbmNtVDdYcDhaSXVrU3JzPSIsImFsZyI6IlJTMjU2In0.eyJzdWIiOiI4NDg4MjQwOC04MGIxLTcwMDktNmIyOC1lNjQ2MDY5MzlkOGUiLCJlbWFpbF92ZXJpZmllZCI6dHJ1ZSwiaXNzIjoiaHR0cHM6XC9cL2NvZ25pdG8taWRwLnVzLWVhc3QtMS5hbWF6b25hd3MuY29tXC91cy1lYXN0LTFfdVc1U1dCc0ZFIiwiY29nbml0bzp1c2VybmFtZSI6Ijg0ODgyNDA4LTgwYjEtNzAwOS02YjI4LWU2NDYwNjkzOWQ4ZSIsIm9yaWdpbl9qdGkiOiI5N2MwM2ZjOS0zMjhjLTQzYTUtOWEyZS02YWE2NzFjMDI3NjgiLCJhdWQiOiI2bTgyOXZ0NHZhdWFtbnVqOHRtaHRmcGEzNyIsImV2ZW50X2lkIjoiZDRiZDUxZWMtNDhiYi00YWVmLWFhODktM2NkYmI2ZDg1ODczIiwidG9rZW5fdXNlIjoiaWQiLCJhdXRoX3RpbWUiOjE3NjQxNjg5NTUsImV4cCI6MTc2NDE3MjU1NSwiaWF0IjoxNzY0MTY4OTU2LCJjdXN0b206c3Vic2NyaXB0aW9uX3N0YXR1cyI6ImFjdGl2ZSIsImp0aSI6ImQ3OTg3N2MwLTM2OWEtNGQ3Yy04YjE1LTgxYjA1YTA1MDg2OCIsImVtYWlsIjoic3RlbG1vcnBoQGdtYWlsLmNvbSJ9.Fbg9kbZR6HhPczIYK9_JvNZbzX8TFgrdE0Q_Frnc_s67-lGwyIt_ekVyP6B7w1XJKmhmnF0ywkPyDMrhzIuLNvG6PUR8KrQFwVho1wYgVxYdD5ctq9wgh3i4HONEOlW4__VfzXUgdsGPjjzZS3q8enZA678NDq_XW9KcdqRzaOY3KIsBAy91OM_mUl2c4nrT_AJOwBLYQHP5G1ffOv4MheLlj1qVFliIJVPi_G_MgPyKrSXhVCyAvOMGGVy80EoMTqkRMoWhJfps7aFcYoMl-yBeGGLkxnkxtrXTaVR6HVExy3updF-xOXfsTDEHa8gxkuwkTMWHeXJBPTN3BjHNuQ"
+        },
+        {
+          "name": "userEmail",
+          "value": "stelmorph@gmail.com"
+        },
+        {
+          "name": "deviceId",
+          "value": "983e51a4-63d7-49bf-8962-efcc4810136f"
+        },
+        {
+          "name": "authAt",
+          "value": "1764168956824"
+        },
+        {
+          "name": "idToken",
+          "value": "eyJraWQiOiJOaEZRRGhEVk1BbkFmdXFMclJXOVFHbUJLT0RtbmNtVDdYcDhaSXVrU3JzPSIsImFsZyI6IlJTMjU2In0.eyJzdWIiOiI4NDg4MjQwOC04MGIxLTcwMDktNmIyOC1lNjQ2MDY5MzlkOGUiLCJlbWFpbF92ZXJpZmllZCI6dHJ1ZSwiaXNzIjoiaHR0cHM6XC9cL2NvZ25pdG8taWRwLnVzLWVhc3QtMS5hbWF6b25hd3MuY29tXC91cy1lYXN0LTFfdVc1U1dCc0ZFIiwiY29nbml0bzp1c2VybmFtZSI6Ijg0ODgyNDA4LTgwYjEtNzAwOS02YjI4LWU2NDYwNjkzOWQ4ZSIsIm9yaWdpbl9qdGkiOiI5N2MwM2ZjOS0zMjhjLTQzYTUtOWEyZS02YWE2NzFjMDI3NjgiLCJhdWQiOiI2bTgyOXZ0NHZhdWFtbnVqOHRtaHRmcGEzNyIsImV2ZW50X2lkIjoiZDRiZDUxZWMtNDhiYi00YWVmLWFhODktM2NkYmI2ZDg1ODczIiwidG9rZW5fdXNlIjoiaWQiLCJhdXRoX3RpbWUiOjE3NjQxNjg5NTUsImV4cCI6MTc2NDE3MjU1NSwiaWF0IjoxNzY0MTY4OTU2LCJjdXN0b206c3Vic2NyaXB0aW9uX3N0YXR1cyI6ImFjdGl2ZSIsImp0aSI6ImQ3OTg3N2MwLTM2OWEtNGQ3Yy04YjE1LTgxYjA1YTA1MDg2OCIsImVtYWlsIjoic3RlbG1vcnBoQGdtYWlsLmNvbSJ9.Fbg9kbZR6HhPczIYK9_JvNZbzX8TFgrdE0Q_Frnc_s67-lGwyIt_ekVyP6B7w1XJKmhmnF0ywkPyDMrhzIuLNvG6PUR8KrQFwVho1wYgVxYdD5ctq9wgh3i4HONEOlW4__VfzXUgdsGPjjzZS3q8enZA678NDq_XW9KcdqRzaOY3KIsBAy91OM_mUl2c4nrT_AJOwBLYQHP5G1ffOv4MheLlj1qVFliIJVPi_G_MgPyKrSXhVCyAvOMGGVy80EoMTqkRMoWhJfps7aFcYoMl-yBeGGLkxnkxtrXTaVR6HVExy3updF-xOXfsTDEHa8gxkuwkTMWHeXJBPTN3BjHNuQ"
+        },
+        {
+          "name": "CognitoIdentityServiceProvider.6m829vt4vauamnuj8tmhtfpa37.stelmorph@gmail.com.clockDrift",
+          "value": "-1"
+        }
+      ]
+    }
+  ]
+}

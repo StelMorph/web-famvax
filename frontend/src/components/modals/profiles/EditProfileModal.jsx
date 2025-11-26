@@ -1,13 +1,9 @@
 import React, { useState, useEffect, useRef, useContext } from 'react';
 import { AppContext } from '../../../contexts/AppContext.js'; // CORRECTED
-import PhoneInput from '../../common/PhoneInput.jsx'; // CORRECTED
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faPlus, faTrashAlt, faTimes } from '@fortawesome/free-solid-svg-icons';
+import { faTimes } from '@fortawesome/free-solid-svg-icons';
 import DatePicker from '../../common/DatePicker.jsx'; // CORRECTED
 import api from '../../../api/apiService.js'; // CORRECTED
-
-// ... (Rest of the component is unchanged as its logic was mostly fine)
-const createDefaultPhone = () => ({ code: '+1', number: '' });
 
 function EditProfileModal({ profile, onUpdate, onClose }) {
   const [formData, setFormData] = useState(null);
